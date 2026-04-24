@@ -10,3 +10,8 @@
   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m8081[22m/[39m
   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.16.0.169:[1m8081[22m/[39m
 [2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+(node:9020) ExperimentalWarning: WASI is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m11:35:55 AM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m11:35:55 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because lockfile has changed
+[2m11:35:55 AM[22m [36m[1m[vite][22m[39m server restarted.

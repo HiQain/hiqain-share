@@ -1,0 +1,8 @@
+[build]
+  command = "pnpm --filter @workspace/web build"
+  publish = "artifacts/web/dist/public"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
