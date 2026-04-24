@@ -2,7 +2,6 @@ import { Link, useLocation } from "wouter";
 import { FaTwitter, FaFacebook } from "react-icons/fa";
 import { Zap, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { Button } from "./ui/button";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -10,7 +9,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navLinks = [
     { href: "/how-it-works", label: "How it works" },
-    { href: "/upgrade", label: "Upgrade" },
     { href: "/feedback", label: "Feedback" },
   ];
 
@@ -38,14 +36,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 {link.label}
               </Link>
             ))}
-            <div className="flex items-center gap-2 ml-4 border-l border-border pl-6">
-              <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">
-                Log in
-              </Link>
-              <Link href="/register">
-                <Button size="sm" className="rounded-full">Sign up</Button>
-              </Link>
-            </div>
           </nav>
 
           {/* Mobile Nav Toggle */}
@@ -73,14 +63,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   {link.label}
                 </Link>
               ))}
-              <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border">
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full justify-start">Log in</Button>
-                </Link>
-                <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full justify-start">Sign up</Button>
-                </Link>
-              </div>
             </nav>
           </div>
         )}

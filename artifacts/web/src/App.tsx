@@ -6,9 +6,7 @@ import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import { Home } from "@/pages/home";
 import { HowItWorks } from "@/pages/how-it-works";
-import { Upgrade } from "@/pages/upgrade";
 import { Feedback } from "@/pages/feedback";
-import { Login, Register } from "@/pages/auth";
 
 const queryClient = new QueryClient();
 
@@ -18,10 +16,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/how-it-works" component={HowItWorks} />
-        <Route path="/upgrade" component={Upgrade} />
         <Route path="/feedback" component={Feedback} />
-        <Route path="/login" component={Login} />
-        <Route path="/register" component={Register} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
