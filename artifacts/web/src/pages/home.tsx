@@ -5,23 +5,17 @@ import {
   useUploadFile,
   useDeleteFile,
   useDownloadFile,
-  useListDevices,
-  useGetActivity,
   getGetBoardQueryKey,
-  getListDevicesQueryKey,
-  getGetActivityQueryKey,
   getListFilesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, useRef, useEffect, useCallback } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileIcon, Smartphone, Laptop, Trash2, Download, Copy, Save, AlertCircle, Clock, CheckCircle2, UploadCloud, X, Activity } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileIcon, Trash2, Download, Copy, Save, Clock, UploadCloud } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const POLL_INTERVAL = 3000;
@@ -31,14 +25,6 @@ export function Home() {
   const { toast } = useToast();
 
   const { data: board, isLoading: isBoardLoading } = useGetBoard({
-    query: { refetchInterval: POLL_INTERVAL },
-  });
-
-  const { data: devices, isLoading: isDevicesLoading } = useListDevices({
-    query: { refetchInterval: POLL_INTERVAL },
-  });
-
-  const { data: activity, isLoading: isActivityLoading } = useGetActivity({
     query: { refetchInterval: POLL_INTERVAL },
   });
 
@@ -66,7 +52,6 @@ export function Home() {
       onSuccess: () => {
         toast({ title: "Text saved", description: "Copied to shared clipboard." });
         queryClient.invalidateQueries({ queryKey: getGetBoardQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetActivityQueryKey() });
       }
     });
   };
@@ -77,7 +62,6 @@ export function Home() {
         setTextContent("");
         toast({ title: "Text cleared" });
         queryClient.invalidateQueries({ queryKey: getGetBoardQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetActivityQueryKey() });
       }
     });
   };
@@ -126,7 +110,6 @@ export function Home() {
             toast({ title: "File uploaded", description: `${file.name} shared successfully.` });
             queryClient.invalidateQueries({ queryKey: getGetBoardQueryKey() });
             queryClient.invalidateQueries({ queryKey: getListFilesQueryKey() });
-            queryClient.invalidateQueries({ queryKey: getGetActivityQueryKey() });
           },
           onError: () => {
             toast({ title: "Upload failed", description: `Could not upload ${file.name}.`, variant: "destructive" });
@@ -142,7 +125,6 @@ export function Home() {
       onSuccess: () => {
         toast({ title: "File deleted" });
         queryClient.invalidateQueries({ queryKey: getGetBoardQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetActivityQueryKey() });
       }
     });
   };
@@ -188,8 +170,7 @@ export function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-6">
           
           {/* TEXT PANEL */}
           <Card className="border-primary/20 shadow-sm overflow-hidden">
@@ -311,97 +292,6 @@ export function Home() {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* SIDEBAR */}
-        <div className="space-y-6">
-          
-          {/* DEVICES */}
-          <Card className="shadow-sm border-none bg-card/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <div className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </div>
-                Devices on this network
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isDevicesLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {devices?.map((device) => (
-                    <div key={device.id} className={`flex items-center gap-3 p-2 rounded-md ${device.isCurrent ? 'bg-primary/10 border border-primary/20' : 'bg-background'}`}>
-                      <div className="p-1.5 bg-muted rounded-md text-muted-foreground">
-                        {device.userAgent.toLowerCase().includes('mobile') ? (
-                          <Smartphone className="h-4 w-4" />
-                        ) : (
-                          <Laptop className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-medium truncate">
-                          {device.label}
-                          {device.isCurrent && <span className="ml-2 text-xs text-primary font-normal">(You)</span>}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          Active {formatDistanceToNow(new Date(device.lastSeen), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ACTIVITY FEED */}
-          <Card className="shadow-sm border-none bg-card/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Recent Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[300px] pr-4">
-                {isActivityLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </div>
-                ) : activity && activity.length > 0 ? (
-                  <div className="space-y-4">
-                    {activity.map((item) => (
-                      <div key={item.id} className="flex gap-3 text-sm">
-                        <div className="mt-0.5 shrink-0 text-muted-foreground">
-                          {item.kind.includes('text') ? <FileIcon className="h-3 w-3" /> :
-                           item.kind.includes('file') ? <UploadCloud className="h-3 w-3" /> :
-                           <CheckCircle2 className="h-3 w-3" />}
-                        </div>
-                        <div>
-                          <p className="text-foreground">{item.summary}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No activity yet</p>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-        </div>
       </div>
     </div>
   );
