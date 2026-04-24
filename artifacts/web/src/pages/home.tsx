@@ -21,6 +21,64 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 const POLL_INTERVAL = 3000;
 
+const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
+
+function DownloadButton({ fileId }: { fileId: string }) {
+  const { refetch, isFetching } = useDownloadFile(fileId, { query: { enabled: false } });
+
+  const onDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { data } = await refetch();
+    if (data?.dataBase64) {
+      const byteCharacters = atob(data.dataBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: data.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  return (
+    <Button variant="secondary" size="icon" onClick={onDownload} disabled={isFetching}>
+      <Download className="h-4 w-4" />
+    </Button>
+  );
+}
+
+function ImagePreviewContent({ fileId }: { fileId: string }) {
+  const { data, isFetching } = useDownloadFile(fileId, {
+    query: {
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+    },
+  });
+  if (isFetching || !data?.dataBase64) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  const src = `data:${data.mimeType};base64,${data.dataBase64}`;
+  return (
+    <div className="flex items-center justify-center bg-muted/30 rounded-md overflow-hidden">
+      <img src={src} alt={data.name} className="max-h-[70vh] max-w-full object-contain" />
+    </div>
+  );
+}
+
 export function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -130,59 +188,6 @@ export function Home() {
         queryClient.invalidateQueries({ queryKey: getGetBoardQueryKey() });
       }
     });
-  };
-
-  const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
-
-  // Download File component
-  const DownloadButton = ({ fileId }: { fileId: string }) => {
-    const { refetch, isFetching } = useDownloadFile(fileId, { query: { enabled: false } });
-    
-    const onDownload = async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const { data } = await refetch();
-      if (data?.dataBase64) {
-        const byteCharacters = atob(data.dataBase64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: data.mimeType });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = data.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-    };
-
-    return (
-      <Button variant="secondary" size="icon" onClick={onDownload} disabled={isFetching}>
-        <Download className="h-4 w-4" />
-      </Button>
-    );
-  };
-
-  // Image Preview Dialog
-  const ImagePreviewContent = ({ fileId }: { fileId: string }) => {
-    const { data, isFetching } = useDownloadFile(fileId);
-    if (isFetching || !data?.dataBase64) {
-      return (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      );
-    }
-    const src = `data:${data.mimeType};base64,${data.dataBase64}`;
-    return (
-      <div className="flex items-center justify-center bg-muted/30 rounded-md overflow-hidden">
-        <img src={src} alt={data.name} className="max-h-[70vh] max-w-full object-contain" />
-      </div>
-    );
   };
 
   return (
