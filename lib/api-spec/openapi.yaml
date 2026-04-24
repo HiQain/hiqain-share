@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: QuickShare API - share text and files between devices on the same network
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: board
+    description: Shared board (text + files) for devices on the same network
+  - name: text
+    description: Shared text snippets
+  - name: files
+    description: Shared files
+  - name: stats
+    description: Aggregate stats and activity
 paths:
   /healthz:
     get:
@@ -24,6 +32,160 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /board:
+    get:
+      operationId: getBoard
+      tags: [board]
+      summary: Get the shared board for the current network
+      description: Returns the current text snippet and the list of non-expired files for this network/room.
+      responses:
+        "200":
+          description: The shared board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+
+  /text:
+    put:
+      operationId: saveText
+      tags: [text]
+      summary: Save text on the shared board
+      description: Replace or update the current shared text snippet for the network.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveTextBody"
+      responses:
+        "200":
+          description: The saved text snippet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TextSnippet"
+    delete:
+      operationId: clearText
+      tags: [text]
+      summary: Clear the shared text snippet
+      responses:
+        "204":
+          description: Cleared
+
+  /files:
+    get:
+      operationId: listFiles
+      tags: [files]
+      summary: List shared files for the current network
+      responses:
+        "200":
+          description: List of shared files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SharedFile"
+    post:
+      operationId: uploadFile
+      tags: [files]
+      summary: Upload a file to the shared board
+      description: |
+        Upload a file (base64 encoded payload) to share with all devices on the same network.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadFileBody"
+      responses:
+        "201":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedFile"
+
+  /files/{fileId}:
+    delete:
+      operationId: deleteFile
+      tags: [files]
+      summary: Delete a shared file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /files/{fileId}/download:
+    get:
+      operationId: downloadFile
+      tags: [files]
+      summary: Get file download payload (base64)
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilePayload"
+
+  /devices:
+    get:
+      operationId: listDevices
+      tags: [board]
+      summary: List devices currently connected to the network room
+      responses:
+        "200":
+          description: Active devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Device"
+
+  /activity:
+    get:
+      operationId: getActivity
+      tags: [stats]
+      summary: Recent activity feed for the current network
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Network room stats
+      description: Lightweight aggregates for the current network (totals, storage used, etc).
+      responses:
+        "200":
+          description: Stats summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +196,181 @@ components:
       required:
         - status
 
+    Board:
+      type: object
+      properties:
+        roomId:
+          type: string
+          description: Identifier for the network room (derived from request IP)
+        text:
+          oneOf:
+            - $ref: "#/components/schemas/TextSnippet"
+            - type: "null"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/SharedFile"
+        deviceCount:
+          type: integer
+        expiresInMinutes:
+          type: integer
+          description: Minutes until current text snippet auto-expires
+      required:
+        - roomId
+        - files
+        - deviceCount
+        - expiresInMinutes
+
+    TextSnippet:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        deviceLabel:
+          type: string
+      required:
+        - id
+        - content
+        - createdAt
+        - expiresAt
+        - deviceLabel
+
+    SaveTextBody:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 0
+          maxLength: 50000
+      required:
+        - content
+
+    SharedFile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        sizeBytes:
+          type: integer
+        mimeType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        deviceLabel:
+          type: string
+      required:
+        - id
+        - name
+        - sizeBytes
+        - mimeType
+        - createdAt
+        - expiresAt
+        - deviceLabel
+
+    UploadFileBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        mimeType:
+          type: string
+        dataBase64:
+          type: string
+          description: Base64-encoded file content
+      required:
+        - name
+        - mimeType
+        - dataBase64
+
+    FilePayload:
+      type: object
+      properties:
+        name:
+          type: string
+        mimeType:
+          type: string
+        dataBase64:
+          type: string
+      required:
+        - name
+        - mimeType
+        - dataBase64
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        userAgent:
+          type: string
+        lastSeen:
+          type: string
+          format: date-time
+        isCurrent:
+          type: boolean
+      required:
+        - id
+        - label
+        - userAgent
+        - lastSeen
+        - isCurrent
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [text_saved, text_cleared, file_uploaded, file_deleted, device_joined]
+        summary:
+          type: string
+        deviceLabel:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - summary
+        - deviceLabel
+        - createdAt
+
+    StatsSummary:
+      type: object
+      properties:
+        totalFiles:
+          type: integer
+        totalBytes:
+          type: integer
+        activeDevices:
+          type: integer
+        textCharacters:
+          type: integer
+        retentionMinutes:
+          type: integer
+      required:
+        - totalFiles
+        - totalBytes
+        - activeDevices
+        - textCharacters
+        - retentionMinutes
