@@ -74,7 +74,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-border bg-card mt-auto py-8">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="text-center md:text-left">
-            <span>&copy; 2026 QR Code Generator.</span>
+            <span>&copy; 2026 Hiqain Share.</span>
           </div>
 
           <div className="flex items-center gap-2 text-center">
