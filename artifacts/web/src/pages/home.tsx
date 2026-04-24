@@ -15,8 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileIcon, Trash2, Download, Copy, Save, Clock, UploadCloud, Type } from "lucide-react";
+import { FileIcon, Trash2, Download, Copy, Save, Clock, UploadCloud, Type, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const POLL_INTERVAL = 3000;
 
@@ -36,6 +37,7 @@ export function Home() {
   const [textContent, setTextContent] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"text" | "files">("text");
+  const [previewFile, setPreviewFile] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync text from server if not editing
@@ -130,11 +132,14 @@ export function Home() {
     });
   };
 
+  const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
+
   // Download File component
-  const DownloadButton = ({ fileId, fileName }: { fileId: string, fileName: string }) => {
+  const DownloadButton = ({ fileId }: { fileId: string }) => {
     const { refetch, isFetching } = useDownloadFile(fileId, { query: { enabled: false } });
     
-    const onDownload = async () => {
+    const onDownload = async (e: React.MouseEvent) => {
+      e.stopPropagation();
       const { data } = await refetch();
       if (data?.dataBase64) {
         const byteCharacters = atob(data.dataBase64);
@@ -159,6 +164,24 @@ export function Home() {
       <Button variant="secondary" size="icon" onClick={onDownload} disabled={isFetching}>
         <Download className="h-4 w-4" />
       </Button>
+    );
+  };
+
+  // Image Preview Dialog
+  const ImagePreviewContent = ({ fileId }: { fileId: string }) => {
+    const { data, isFetching } = useDownloadFile(fileId);
+    if (isFetching || !data?.dataBase64) {
+      return (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    const src = `data:${data.mimeType};base64,${data.dataBase64}`;
+    return (
+      <div className="flex items-center justify-center bg-muted/30 rounded-md overflow-hidden">
+        <img src={src} alt={data.name} className="max-h-[70vh] max-w-full object-contain" />
+      </div>
     );
   };
 
@@ -292,11 +315,21 @@ export function Home() {
               ) : board?.files && board.files.length > 0 ? (
                 <div className="mt-6 space-y-3">
                   <h3 className="text-sm font-medium text-muted-foreground">Currently on board</h3>
-                  {board.files.map((file) => (
-                    <div key={file.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/30 transition-colors group">
+                  {board.files.map((file) => {
+                    const isImage = isImageMime(file.mimeType);
+                    return (
+                    <div
+                      key={file.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/30 transition-colors group ${isImage ? 'cursor-pointer' : ''}`}
+                      onClick={isImage ? () => setPreviewFile({ id: file.id, name: file.name }) : undefined}
+                    >
                       <div className="flex items-center gap-3 overflow-hidden">
                         <div className="bg-primary/10 p-2 rounded-md shrink-0">
-                          <FileIcon className="h-5 w-5 text-primary" />
+                          {isImage ? (
+                            <ImageIcon className="h-5 w-5 text-primary" />
+                          ) : (
+                            <FileIcon className="h-5 w-5 text-primary" />
+                          )}
                         </div>
                         <div className="overflow-hidden">
                           <p className="text-sm font-medium truncate">{file.name}</p>
@@ -304,17 +337,19 @@ export function Home() {
                             <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
                             <span>•</span>
                             <span>By {file.deviceLabel}</span>
+                            {isImage && <><span>•</span><span className="text-primary">Click to preview</span></>}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <DownloadButton fileId={file.id} fileName={file.name} />
-                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteFile(file.id)}>
+                        <DownloadButton fileId={file.id} />
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id); }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="mt-6 text-center py-6">
@@ -326,6 +361,15 @@ export function Home() {
           )}
         </div>
       </div>
+
+      <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="truncate pr-8">{previewFile?.name}</DialogTitle>
+          </DialogHeader>
+          {previewFile && <ImagePreviewContent fileId={previewFile.id} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
