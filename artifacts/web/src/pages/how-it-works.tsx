@@ -9,7 +9,7 @@ export function HowItWorks() {
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Sharing made frictionless</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            No accounts. No cables. No emailing yourself. QuickShare connects devices instantly on the same network.
+            No accounts. No cables. No emailing yourself. Hiqain Share connects devices instantly on the same network.
           </p>
         </div>
 
@@ -22,7 +22,7 @@ export function HowItWorks() {
               <div>
                 <h3 className="text-xl font-semibold mb-2">Same Wi-Fi, same board</h3>
                 <p className="text-muted-foreground">
-                  Just open QuickShare on your phone and your laptop while connected to the same network. You'll instantly land on the same shared board.
+                  Just open Hiqain Share on your phone and your laptop while connected to the same network. You'll instantly land on the same shared board.
                 </p>
               </div>
             </div>
@@ -84,7 +84,7 @@ export function HowItWorks() {
         <div className="text-center bg-primary text-primary-foreground rounded-2xl p-12">
           <h2 className="text-3xl font-bold mb-4">Ready to clear your tab clutter?</h2>
           <p className="mb-8 text-primary-foreground/80 max-w-lg mx-auto">
-            Stop emailing yourself links and photos. Try QuickShare right now.
+            Stop emailing yourself links and photos. Try Hiqain Share right now.
           </p>
           <Link href="/">
             <Button size="lg" variant="secondary" className="rounded-full font-semibold">

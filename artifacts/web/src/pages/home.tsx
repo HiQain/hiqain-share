@@ -6,6 +6,7 @@ import {
   useDeleteFile,
   useDownloadFile,
   getGetBoardQueryKey,
+  getDownloadFileQueryKey,
   getListFilesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,7 +25,9 @@ const POLL_INTERVAL = 3000;
 const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
 
 function DownloadButton({ fileId }: { fileId: string }) {
-  const { refetch, isFetching } = useDownloadFile(fileId, { query: { enabled: false } });
+  const { refetch, isFetching } = useDownloadFile(fileId, {
+    query: { queryKey: getDownloadFileQueryKey(fileId), enabled: false },
+  });
 
   const onDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -58,6 +61,7 @@ function DownloadButton({ fileId }: { fileId: string }) {
 function ImagePreviewContent({ fileId }: { fileId: string }) {
   const { data, isFetching } = useDownloadFile(fileId, {
     query: {
+      queryKey: getDownloadFileQueryKey(fileId),
       staleTime: Infinity,
       refetchOnWindowFocus: false,
       refetchOnMount: false,
@@ -84,7 +88,7 @@ export function Home() {
   const { toast } = useToast();
 
   const { data: board, isLoading: isBoardLoading } = useGetBoard({
-    query: { refetchInterval: POLL_INTERVAL },
+    query: { queryKey: getGetBoardQueryKey(), refetchInterval: POLL_INTERVAL },
   });
 
   const saveText = useSaveText();
@@ -348,7 +352,7 @@ export function Home() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <DownloadButton fileId={file.id} />
-                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id); }}>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.id); }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

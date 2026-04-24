@@ -1,5 +1,4 @@
 import { Link, useLocation } from "wouter";
-import { FaTwitter, FaFacebook } from "react-icons/fa";
 import { Zap, Menu, X } from "lucide-react";
 import { useState } from "react";
 
@@ -20,7 +19,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="bg-primary text-primary-foreground p-1.5 rounded-md group-hover:scale-105 transition-transform">
               <Zap className="h-5 w-5 fill-current" />
             </div>
-            <span className="font-bold text-xl tracking-tight text-foreground">QuickShare</span>
+            <span className="font-bold text-xl tracking-tight text-foreground">Hiqain Share</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -74,20 +73,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t border-border bg-card mt-auto py-8">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-foreground">QuickShare</span>
-            <span>&copy; {new Date().getFullYear()}</span>
-          </div>
-          
-          <div className="text-center">
-            Made with care for fast sharing.
+          <div className="text-center md:text-left">
+            <span>&copy; 2026 QR Code Generator.</span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-primary transition-colors"><FaTwitter className="h-5 w-5" /></a>
-            <a href="#" className="hover:text-primary transition-colors"><FaFacebook className="h-5 w-5" /></a>
+          <div className="flex items-center gap-2 text-center">
+            <Link href="/" className="hover:text-primary transition-colors">
+              Home
+            </Link>
+            <span>|</span>
+            <Link href="/blog" className="hover:text-primary transition-colors">
+              Blog
+            </Link>
+            <span>|</span>
+            <Link href="/privacy-policy" className="hover:text-primary transition-colors">
+              Privacy Policy
+            </Link>
+            <span>|</span>
+            <Link href="/terms-of-service" className="hover:text-primary transition-colors">
+              Terms of Service
+            </Link>
           </div>
+
+          <a
+            href="https://hiqain.com/"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-primary transition-colors hover:text-primary hover:underline underline-offset-4"
+          >
+            Powered By Hiqain Pvt Ltd
+          </a>
         </div>
       </footer>
     </div>

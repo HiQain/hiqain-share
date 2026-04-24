@@ -37,7 +37,7 @@ export function Feedback() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     toast({
       title: "Feedback sent!",
-      description: "Thank you for helping us improve QuickShare.",
+      description: "Thank you for helping us improve Hiqain Share.",
     });
     form.reset();
   }
