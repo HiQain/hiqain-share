@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileIcon, Trash2, Download, Copy, Save, Clock, UploadCloud } from "lucide-react";
+import { FileIcon, Trash2, Download, Copy, Save, Clock, UploadCloud, Type } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const POLL_INTERVAL = 3000;
@@ -35,6 +35,7 @@ export function Home() {
 
   const [textContent, setTextContent] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [activeTab, setActiveTab] = useState<"text" | "files">("text");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync text from server if not editing
@@ -170,9 +171,37 @@ export function Home() {
         </p>
       </div>
 
-      <div className="space-y-6">
-          
-          {/* TEXT PANEL */}
+      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
+        {/* LEFT TAB SIDEBAR */}
+        <div className="flex md:flex-col gap-2">
+          <button
+            onClick={() => setActiveTab("text")}
+            className={`flex-1 md:flex-none flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left ${
+              activeTab === "text"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-card border border-border hover:bg-muted text-foreground"
+            }`}
+          >
+            <Type className="h-4 w-4 shrink-0" />
+            Shared Text
+          </button>
+          <button
+            onClick={() => setActiveTab("files")}
+            className={`flex-1 md:flex-none flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left ${
+              activeTab === "files"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-card border border-border hover:bg-muted text-foreground"
+            }`}
+          >
+            <UploadCloud className="h-4 w-4 shrink-0" />
+            Shared Files
+          </button>
+        </div>
+
+        {/* RIGHT CONTENT AREA */}
+        <div>
+          {activeTab === "text" && (
+          /* TEXT PANEL */
           <Card className="border-primary/20 shadow-sm overflow-hidden">
             <CardHeader className="bg-muted/50 pb-4">
               <div className="flex items-center justify-between">
@@ -220,8 +249,10 @@ export function Home() {
               </div>
             </CardContent>
           </Card>
+          )}
 
-          {/* FILES PANEL */}
+          {activeTab === "files" && (
+          /* FILES PANEL */
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -292,6 +323,8 @@ export function Home() {
               )}
             </CardContent>
           </Card>
+          )}
+        </div>
       </div>
     </div>
   );
