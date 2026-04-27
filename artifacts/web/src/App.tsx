@@ -11,6 +11,8 @@ import { Admin } from "@/pages/admin";
 import { Blog } from "@/pages/blog";
 import { PrivacyPolicy } from "@/pages/privacy-policy";
 import { TermsOfService } from "@/pages/terms-of-service";
+import ContactPage from "./pages/contact";
+import DisclaimerPage from "./pages/disclaimer";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +25,8 @@ function Router() {
         <Route path="/how-it-works" component={HowItWorks} />
         <Route path="/feedback" component={Feedback} />
         <Route path="/blog" component={Blog} />
+        <Route path="/contact" component={ContactPage} />
+        <Route path="/disclaimer" component={DisclaimerPage} />
         <Route path="/privacy-policy" component={PrivacyPolicy} />
         <Route path="/terms-of-service" component={TermsOfService} />
         <Route component={NotFound} />

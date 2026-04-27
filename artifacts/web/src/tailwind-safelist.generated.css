@@ -36,12 +36,15 @@
 @source inline("!m-0");
 @source inline("...state.toasts].slice(0,");
 @source inline(".[0]");
+@source inline(".[1])");
 @source inline(".[theme");
+@source inline(".goog-te-combo");
 @source inline(".map(([key,");
 @source inline(".text])");
 @source inline("([,");
 @source inline("([theme,");
 @source inline(")[1]");
+@source inline(")googtrans=([");
 @source inline("[");
 @source inline("[_open,");
 @source inline("[--cell-size:2rem]");
@@ -169,11 +172,14 @@
 @source inline("[posts,");
 @source inline("[previewFile,");
 @source inline("[scrollPrev,");
+@source inline("[selectedLanguage,");
 @source inline("[setOpenProp,");
 @source inline("[state,");
 @source inline("[state])");
+@source inline("[submitted,");
 @source inline("[textContent,");
 @source inline("[toggleSidebar])");
+@source inline("[translatorStatus,");
 @source inline("]");
 @source inline("],");
 @source inline("]:focus-visible:relative");
@@ -190,6 +196,7 @@
 @source inline("]]:stroke-border");
 @source inline("]]:stroke-border/50");
 @source inline("]]:stroke-transparent");
+@source inline("]+)/)");
 @source inline("=from-]:animate-in");
 @source inline("=from-]:fade-in");
 @source inline("=to-]:animate-out");
@@ -241,7 +248,9 @@
 @source inline("bg-card");
 @source inline("bg-destructive");
 @source inline("bg-foreground");
+@source inline("bg-gray-200");
 @source inline("bg-gray-50");
+@source inline("bg-green-50");
 @source inline("bg-input");
 @source inline("bg-muted");
 @source inline("bg-muted/20");
@@ -272,11 +281,13 @@
 @source inline("border-border/40");
 @source inline("border-border/50");
 @source inline("border-border/60");
+@source inline("border-border/70");
 @source inline("border-collapse");
 @source inline("border-dashed");
 @source inline("border-destructive");
 @source inline("border-destructive-border");
 @source inline("border-destructive/50");
+@source inline("border-green-200");
 @source inline("border-input");
 @source inline("border-l");
 @source inline("border-l-transparent");
@@ -297,6 +308,7 @@
 @source inline("break-words");
 @source inline("button-group");
 @source inline("button-group-separator");
+@source inline("button-language-");
 @source inline("Button>[");
 @source inline("byteNumbers[i]");
 @source inline("caption-bottom");
@@ -442,10 +454,13 @@
 @source inline("data-size=");
 @source inline("data-slot=");
 @source inline("data-state=");
+@source inline("data-testid=");
 @source inline("data-variant=");
+@source inline("decodeURIComponent(cookieMatch[1])");
 @source inline("disabled:cursor-not-allowed");
 @source inline("disabled:opacity-50");
 @source inline("disabled:pointer-events-none");
+@source inline("document.cookie.match(/(");
 @source inline("duration-100");
 @source inline("duration-1000");
 @source inline("duration-200");
@@ -515,6 +530,7 @@
 @source inline("font-normal");
 @source inline("font-sans");
 @source inline("font-semibold");
+@source inline("FormState[K])");
 @source inline("gap-1");
 @source inline("gap-1.5");
 @source inline("gap-12");
@@ -525,6 +541,10 @@
 @source inline("gap-5");
 @source inline("gap-6");
 @source inline("gap-7");
+@source inline("gap-8");
+@source inline("gap-x-5");
+@source inline("gap-y-2");
+@source inline("google-translate-script");
 @source inline("grid");
 @source inline("grid-cols-1");
 @source inline("group");
@@ -710,6 +730,7 @@
 @source inline("inset-0");
 @source inline("inset-x-0");
 @source inline("inset-y-0");
+@source inline("italic");
 @source inline("item-actions");
 @source inline("item-content");
 @source inline("item-description");
@@ -729,6 +750,7 @@
 @source inline("justify-center");
 @source inline("justify-start");
 @source inline("kbd-group");
+@source inline("LANGUAGE_OPTIONS)[number][");
 @source inline("last:mt-0");
 @source inline("last:rounded-r-md");
 @source inline("leading-6");
@@ -751,9 +773,11 @@
 @source inline("max-h-[300px]");
 @source inline("max-h-[70vh]");
 @source inline("max-h-[var(--radix-dropdown-menu-content-available-height)]");
+@source inline("max-h-72");
 @source inline("max-h-screen");
 @source inline("max-w-[var(--skeleton-width)]");
 @source inline("max-w-2xl");
+@source inline("max-w-3xl");
 @source inline("max-w-4xl");
 @source inline("max-w-5xl");
 @source inline("max-w-6xl");
@@ -780,6 +804,7 @@
 @source inline("md:flex-col");
 @source inline("md:flex-none");
 @source inline("md:flex-row");
+@source inline("md:grid-cols-[1.2fr_1fr_1fr]");
 @source inline("md:grid-cols-[200px_1fr]");
 @source inline("md:grid-cols-2");
 @source inline("md:hidden");
@@ -799,6 +824,7 @@
 @source inline("md:self-auto");
 @source inline("md:text-5xl");
 @source inline("md:text-left");
+@source inline("md:text-right");
 @source inline("md:text-sm");
 @source inline("md:w-[var(--radix-navigation-menu-viewport-width)]");
 @source inline("md:w-auto");
@@ -821,6 +847,8 @@
 @source inline("min-h-0");
 @source inline("min-h-10");
 @source inline("min-h-32");
+@source inline("min-h-36");
+@source inline("min-h-5");
 @source inline("min-h-8");
 @source inline("min-h-9");
 @source inline("min-h-screen");
@@ -838,6 +866,7 @@
 @source inline("ml-2");
 @source inline("ml-4");
 @source inline("ml-auto");
+@source inline("mr-1.5");
 @source inline("mr-2");
 @source inline("mt-0.5");
 @source inline("mt-1");
@@ -855,6 +884,10 @@
 @source inline("my-0.5");
 @source inline("my-1");
 @source inline("navigate]");
+@source inline("navLinks[0].href");
+@source inline("navLinks[0].label");
+@source inline("navLinks[1].href");
+@source inline("navLinks[1].label");
 @source inline("next-themes");
 @source inline("non-identifying");
 @source inline("nth-last-2:-mt-1");
@@ -914,6 +947,7 @@
 @source inline("peer-hover/menu-button:text-sidebar-accent-foreground");
 @source inline("peer/field-label");
 @source inline("peer/menu-button");
+@source inline("phone-formatter-language");
 @source inline("pl-2");
 @source inline("pl-2.5");
 @source inline("pl-3");
@@ -995,6 +1029,7 @@
 @source inline("rounded-tl-sm");
 @source inline("rounded-xl");
 @source inline("scrollNext]");
+@source inline("select-language");
 @source inline("select-none");
 @source inline("self-start");
 @source inline("self-stretch");
@@ -1013,8 +1048,11 @@
 @source inline("setPassword]");
 @source inline("setPosts]");
 @source inline("setPreviewFile]");
+@source inline("setSelectedLanguage]");
 @source inline("setState]");
+@source inline("setSubmitted]");
 @source inline("setTextContent]");
+@source inline("setTranslatorStatus]");
 @source inline("shadow-[0_0_0_1px_hsl(var(--sidebar-border))]");
 @source inline("shadow-lg");
 @source inline("shadow-md");
@@ -1061,6 +1099,9 @@
 @source inline("sm:flex-col");
 @source inline("sm:flex-row");
 @source inline("sm:gap-2.5");
+@source inline("sm:grid-cols-2");
+@source inline("sm:items-center");
+@source inline("sm:justify-between");
 @source inline("sm:justify-end");
 @source inline("sm:max-w-sm");
 @source inline("sm:mt-0");
@@ -1069,6 +1110,7 @@
 @source inline("sm:px-7");
 @source inline("sm:py-14");
 @source inline("sm:py-6");
+@source inline("sm:py-8");
 @source inline("sm:right-0");
 @source inline("sm:rounded-lg");
 @source inline("sm:space-x-2");
@@ -1076,7 +1118,9 @@
 @source inline("sm:space-y-8");
 @source inline("sm:text-4xl");
 @source inline("sm:text-left");
+@source inline("sm:text-xl");
 @source inline("sm:top-auto");
+@source inline("sm:w-auto");
 @source inline("space-x-1");
 @source inline("space-x-4");
 @source inline("space-y-1.5");
@@ -1097,8 +1141,10 @@
 @source inline("text-3xl");
 @source inline("text-4xl");
 @source inline("text-accent-foreground");
+@source inline("text-amber-700");
 @source inline("text-balance");
 @source inline("text-base");
+@source inline("text-black");
 @source inline("text-card-foreground");
 @source inline("text-center");
 @source inline("text-current");
@@ -1106,8 +1152,10 @@
 @source inline("text-destructive-foreground");
 @source inline("text-foreground");
 @source inline("text-foreground/50");
+@source inline("text-foreground/80");
 @source inline("text-gray-600");
 @source inline("text-gray-900");
+@source inline("text-green-800");
 @source inline("text-left");
 @source inline("text-lg");
 @source inline("text-muted-foreground");
@@ -1119,10 +1167,13 @@
 @source inline("text-secondary-foreground");
 @source inline("text-sidebar-foreground");
 @source inline("text-sidebar-foreground/70");
+@source inline("text-slate-800");
 @source inline("text-sm");
 @source inline("text-sm/relaxed");
 @source inline("text-xl");
 @source inline("text-xs");
+@source inline("third-party");
+@source inline("Third-Party");
 @source inline("toast-close=");
 @source inline("ToasterProps[");
 @source inline("ToasterToast[");
@@ -1139,6 +1190,7 @@
 @source inline("top-4");
 @source inline("top-full");
 @source inline("touch-none");
+@source inline("tracking-[0.2em]");
 @source inline("tracking-tight");
 @source inline("tracking-widest");
 @source inline("transition-[color,box-shadow]");
@@ -1165,6 +1217,8 @@
 @source inline("w-");
 @source inline("w-[--cell-size]");
 @source inline("w-[100px]");
+@source inline("w-[156px]");
+@source inline("w-[164px]");
 @source inline("w-[1px]");
 @source inline("w-[var(--sidebar-width)]");
 @source inline("w-0");
@@ -1201,4 +1255,6 @@
 @source inline("z-10");
 @source inline("z-20");
 @source inline("z-50");
+@source inline("zh-CN");
+@source inline("zh-TW");
 @source inline("zoom-in-95");

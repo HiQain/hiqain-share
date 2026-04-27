@@ -1,6 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { Zap, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { LanguageSelector } from "@/components/LanguageBar";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -24,17 +26,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  location === link.href ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            <LanguageSelector className="h-9 w-[164px] bg-background" />
+            <Link
+              href={navLinks[0].href}
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                location === navLinks[0].href ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              {navLinks[0].label}
+            </Link>
+            <Link
+              href={navLinks[1].href}
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                location === navLinks[1].href ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              {navLinks[1].label}
+            </Link>
           </nav>
 
           {/* Mobile Nav Toggle */}
@@ -50,6 +58,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-border bg-background animate-in slide-in-from-top-4">
             <nav className="flex flex-col p-4 gap-4">
+              <div className="px-2">
+                <LanguageSelector className="h-10 w-full bg-background" />
+              </div>
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -71,49 +82,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer className="border-t border-border bg-card mt-auto py-8">
-        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="text-center md:text-left">
-            <span>&copy; 2026 Hiqain Share.</span>
-          </div>
-
-          <div className="flex items-center gap-2 text-center">
-            <Link href="/" className="hover:text-primary transition-colors">
-              Home
-            </Link>
-            <span>|</span>
-            <Link href="/blog" className="hover:text-primary transition-colors">
-              Blog
-            </Link>
-            <span>|</span>
-            <Link href="/privacy-policy" className="hover:text-primary transition-colors">
-              Privacy Policy
-            </Link>
-            <span>|</span>
-            <Link href="/terms-of-service" className="hover:text-primary transition-colors">
-              Terms of Service
-            </Link>
-          </div>
-
-          <a
-            href="https://hiqain.com/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-primary transition-colors hover:text-primary hover:underline underline-offset-4"
-          >
-            Powered By Hiqain Pvt Ltd
-          </a>
-        </div>
-
-        <div className="px-4 pt-4">
-          <div className="mx-auto max-w-6xl rounded-2xl border border-border/60 bg-gray-200 px-4 py-3 text-center text-sm leading-6 text-slate-800 shadow-sm">
-            <span className="font-semibold text-amber-700">Disclaimer:</span>{" "}
-            Hiqain is an independent platform. We are{" "}
-            <span className="font-semibold text-black">not affiliated</span> with any government
-            body or official examination authority.
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
