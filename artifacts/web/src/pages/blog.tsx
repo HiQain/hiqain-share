@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
-import { getStoredBlogs, type BlogPost } from "@/lib/blog-store";
+import { useListBlogs } from "@workspace/api-client-react";
+import type { BlogPost } from "@/lib/blog-store";
+
+function formatBlogDate(publishedAt: string): string {
+  return new Date(publishedAt).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export function Blog() {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-
-  useEffect(() => {
-    setPosts(getStoredBlogs());
-  }, []);
+  const { data: posts = [] } = useListBlogs();
 
   return (
     <div className="py-16 md:py-24">
@@ -20,7 +24,7 @@ export function Blog() {
         </div>
 
         <div className="grid gap-6">
-          {posts.map((post) => (
+          {(posts as BlogPost[]).map((post) => (
             <article
               key={post.id}
               className="rounded-2xl border border-border bg-card p-6 md:p-8 shadow-sm"
@@ -32,7 +36,7 @@ export function Blog() {
                   className="mb-5 h-56 w-full rounded-xl object-cover"
                 />
               )}
-              <p className="mb-3 text-sm text-muted-foreground">{post.date}</p>
+              <p className="mb-3 text-sm text-muted-foreground">{formatBlogDate(post.publishedAt)}</p>
               <h2 className="mb-3 text-2xl font-semibold">{post.title}</h2>
               <p className="text-muted-foreground">{post.excerpt}</p>
               <p className="mt-4 text-sm leading-7 text-muted-foreground">{post.content}</p>

@@ -119,6 +119,42 @@ export const DownloadFileResponse = zod.object({
 });
 
 /**
+ * @summary List blog posts
+ */
+export const ListBlogsResponseItem = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  excerpt: zod.string(),
+  content: zod.string(),
+  imageDataUrl: zod.union([zod.string(), zod.null()]),
+  publishedAt: zod.coerce.date(),
+});
+export const ListBlogsResponse = zod.array(ListBlogsResponseItem);
+
+/**
+ * @summary Create a blog post
+ */
+export const createBlogBodyTitleMax = 200;
+
+export const createBlogBodyExcerptMax = 1000;
+
+export const createBlogBodyContentMax = 20000;
+
+export const CreateBlogBody = zod.object({
+  title: zod.string().min(1).max(createBlogBodyTitleMax),
+  excerpt: zod.string().min(1).max(createBlogBodyExcerptMax),
+  content: zod.string().min(1).max(createBlogBodyContentMax),
+  imageDataUrl: zod.union([zod.string(), zod.null()]),
+});
+
+/**
+ * @summary Delete a blog post
+ */
+export const DeleteBlogParams = zod.object({
+  blogId: zod.coerce.string(),
+});
+
+/**
  * @summary List devices currently connected to the network room
  */
 export const ListDevicesResponseItem = zod.object({

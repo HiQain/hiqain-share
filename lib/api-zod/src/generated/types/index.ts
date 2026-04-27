@@ -8,7 +8,9 @@
 
 export * from "./activityItem";
 export * from "./activityItemKind";
+export * from "./blogPost";
 export * from "./board";
+export * from "./createBlogBody";
 export * from "./device";
 export * from "./filePayload";
 export * from "./healthStatus";

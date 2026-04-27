@@ -62,6 +62,34 @@ export interface FilePayload {
   dataBase64: string;
 }
 
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  imageDataUrl: string | null;
+  publishedAt: string;
+}
+
+export interface CreateBlogBody {
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  title: string;
+  /**
+   * @minLength 1
+   * @maxLength 1000
+   */
+  excerpt: string;
+  /**
+   * @minLength 1
+   * @maxLength 20000
+   */
+  content: string;
+  imageDataUrl: string | null;
+}
+
 export interface Device {
   id: string;
   label: string;

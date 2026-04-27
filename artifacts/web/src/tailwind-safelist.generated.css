@@ -159,7 +159,7 @@
 @source inline("[data-chart=");
 @source inline("[email,");
 @source inline("[form,");
-@source inline("[isAuthenticated,");
+@source inline("[isAuthenticatedState,");
 @source inline("[isDragging,");
 @source inline("[isMobile,");
 @source inline("[item]");
@@ -169,7 +169,6 @@
 @source inline("[modifiers.focused])");
 @source inline("[openMobile,");
 @source inline("[password,");
-@source inline("[posts,");
 @source inline("[previewFile,");
 @source inline("[scrollPrev,");
 @source inline("[selectedLanguage,");
@@ -269,8 +268,8 @@
 @source inline("block");
 @source inline("block-end");
 @source inline("block-start");
-@source inline("BlogPost[]");
-@source inline("BlogPost[]>([])");
+@source inline("BlogPost[]).length");
+@source inline("BlogPost[]).map((post)");
 @source inline("border");
 @source inline("border-[--color-border]");
 @source inline("border-[1.5px]");
@@ -322,7 +321,6 @@
 @source inline("config]");
 @source inline("config])");
 @source inline("container");
-@source inline("copy-paste");
 @source inline("cursor-default");
 @source inline("cursor-pointer");
 @source inline("cursor-text");
@@ -690,7 +688,6 @@
 @source inline("has-focus:ring-ring/50");
 @source inline("hidden");
 @source inline("hiqain-share.admin-auth");
-@source inline("hiqain-share.blog-posts");
 @source inline("hover-elevate");
 @source inline("hover:after:bg-sidebar-border");
 @source inline("hover:bg-accent");
@@ -957,9 +954,6 @@
 @source inline("placeholder:text-muted-foreground");
 @source inline("pointer-events-auto");
 @source inline("pointer-events-none");
-@source inline("post-1");
-@source inline("post-2");
-@source inline("post-3");
 @source inline("pr-1");
 @source inline("pr-2");
 @source inline("pr-2.5");
@@ -993,8 +987,6 @@
 @source inline("py-5");
 @source inline("py-6");
 @source inline("py-8");
-@source inline("QR-based");
-@source inline("QR-Based");
 @source inline("react-day-picker");
 @source inline("react-dom/client");
 @source inline("react-hook-form");
@@ -1046,7 +1038,6 @@
 @source inline("setOpenMobile]");
 @source inline("setOpenMobile])");
 @source inline("setPassword]");
-@source inline("setPosts]");
 @source inline("setPreviewFile]");
 @source inline("setSelectedLanguage]");
 @source inline("setState]");

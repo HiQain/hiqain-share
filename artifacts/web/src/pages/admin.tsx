@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCreateBlog, useDeleteBlog, useListBlogs, getListBlogsQueryKey } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { Trash2, LogOut, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,16 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import {
-  getStoredBlogs,
-  isAdminAuthenticated,
-  saveBlogs,
-  setAdminAuthenticated,
-  type BlogPost,
-} from "@/lib/blog-store";
+import { isAdminAuthenticated, setAdminAuthenticated, type BlogPost } from "@/lib/blog-store";
 
-const ADMIN_EMAIL = "admin@hiqain.com";
-const ADMIN_PASSWORD = "password";
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL?.trim() ?? "";
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD?.trim() ?? "";
 
 type BlogFormState = {
   title: string;
@@ -31,8 +27,11 @@ const initialFormState: BlogFormState = {
   imageDataUrl: null,
 };
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
+function formatDate(date: string): string {
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return "";
+
+  return value.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -40,18 +39,23 @@ function formatDate(date: Date): string {
 }
 
 export function Admin() {
+  const queryClient = useQueryClient();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticatedState, setIsAuthenticated] = useState(isAdminAuthenticated());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [form, setForm] = useState<BlogFormState>(initialFormState);
+  const createBlog = useCreateBlog();
+  const deleteBlog = useDeleteBlog();
+  const { data: posts = [] } = useListBlogs({
+    query: {
+      queryKey: getListBlogsQueryKey(),
+      enabled: isAuthenticatedState,
+    },
+  });
 
-  useEffect(() => {
-    setIsAuthenticated(isAdminAuthenticated());
-    setPosts(getStoredBlogs());
-  }, []);
+  const refreshBlogs = () => queryClient.invalidateQueries({ queryKey: getListBlogsQueryKey() });
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +63,7 @@ export function Admin() {
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       setAdminAuthenticated(true);
       setIsAuthenticated(true);
-      setPosts(getStoredBlogs());
+      refreshBlogs();
       toast({
         title: "Authenticated",
         description: "Admin panel unlocked successfully.",
@@ -108,38 +112,44 @@ export function Admin() {
       return;
     }
 
-    const nextPosts: BlogPost[] = [
+    createBlog.mutate(
       {
-        id: crypto.randomUUID(),
-        title: form.title.trim(),
-        excerpt: form.excerpt.trim(),
-        content: form.content.trim(),
-        date: formatDate(new Date()),
-        imageDataUrl: form.imageDataUrl,
+        data: {
+          title: form.title.trim(),
+          excerpt: form.excerpt.trim(),
+          content: form.content.trim(),
+          imageDataUrl: form.imageDataUrl,
+        },
       },
-      ...posts,
-    ];
-
-    setPosts(nextPosts);
-    saveBlogs(nextPosts);
-    setForm(initialFormState);
-    toast({
-      title: "Blog added",
-      description: "The new blog entry has been saved.",
-    });
+      {
+        onSuccess: () => {
+          setForm(initialFormState);
+          refreshBlogs();
+          toast({
+            title: "Blog added",
+            description: "The new blog entry has been saved to the database.",
+          });
+        },
+      },
+    );
   };
 
   const handleDeletePost = (id: string) => {
-    const nextPosts = posts.filter((post) => post.id !== id);
-    setPosts(nextPosts);
-    saveBlogs(nextPosts);
-    toast({
-      title: "Blog deleted",
-      description: "The blog entry has been removed.",
-    });
+    deleteBlog.mutate(
+      { blogId: id },
+      {
+        onSuccess: () => {
+          refreshBlogs();
+          toast({
+            title: "Blog deleted",
+            description: "The blog entry has been removed.",
+          });
+        },
+      },
+    );
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticatedState) {
     return (
       <div className="py-10 sm:py-14 md:py-20">
         <div className="container mx-auto max-w-md px-4 sm:px-6">
@@ -247,7 +257,9 @@ export function Admin() {
                   )}
                 </div>
                 <div className="pt-1">
-                  <Button type="submit">Add Blog</Button>
+                  <Button type="submit" disabled={createBlog.isPending}>
+                    {createBlog.isPending ? "Saving..." : "Add Blog"}
+                  </Button>
                 </div>
               </form>
             </CardContent>
@@ -259,7 +271,7 @@ export function Admin() {
               <CardDescription>All current blogs visible on the public site.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-5 py-5 sm:px-6 sm:py-6">
-              {posts.length === 0 ? (
+              {(posts as BlogPost[]).length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-10 text-center">
                   <p className="font-medium">No blogs yet</p>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -267,32 +279,34 @@ export function Admin() {
                   </p>
                 </div>
               ) : (
-                posts.map((post) => (
-                <div key={post.id} className="rounded-xl border border-border bg-background/60 p-4 sm:p-5">
-                  {post.imageDataUrl && (
-                    <img
-                      src={post.imageDataUrl}
-                      alt={post.title}
-                      className="mb-4 h-36 w-full rounded-lg object-cover"
-                    />
-                  )}
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 space-y-2">
-                      <p className="mb-1 text-xs text-muted-foreground">{post.date}</p>
-                      <h2 className="text-lg font-semibold leading-snug">{post.title}</h2>
-                      <p className="text-sm leading-6 text-muted-foreground">{post.excerpt}</p>
+                (posts as BlogPost[]).map((post) => (
+                  <div key={post.id} className="rounded-xl border border-border bg-background/60 p-4 sm:p-5">
+                    {post.imageDataUrl && (
+                      <img
+                        src={post.imageDataUrl}
+                        alt={post.title}
+                        className="mb-4 h-36 w-full rounded-lg object-cover"
+                      />
+                    )}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 space-y-2">
+                        <p className="mb-1 text-xs text-muted-foreground">{formatDate(post.publishedAt)}</p>
+                        <h2 className="text-lg font-semibold leading-snug">{post.title}</h2>
+                        <p className="text-sm leading-6 text-muted-foreground">{post.excerpt}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={deleteBlog.isPending}
+                        className="mt-0.5 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDeletePost(post.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="mt-0.5 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => handleDeletePost(post.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
-                </div>
-              )))}
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
