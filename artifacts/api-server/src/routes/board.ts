@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, roomsTable, textsTable, filesTable, devicesTable, activityTable } from "@workspace/db";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import {
   GetBoardResponse,
   SaveTextBody,
@@ -28,7 +28,10 @@ const router: IRouter = Router();
 const useMemoryStore = process.env["USE_IN_MEMORY_STORE"] === "true";
 
 async function ensureRoom(roomId: string): Promise<void> {
-  await db.insert(roomsTable).values({ id: roomId }).onConflictDoNothing();
+  await db
+    .insert(roomsTable)
+    .values({ id: roomId })
+    .onDuplicateKeyUpdate({ set: { id: sql`id` } });
 }
 
 function fmtBytes(n: number): string {
@@ -565,19 +568,24 @@ async function touchDevice(req: Request, res: Response, roomId: string): Promise
     return { id: deviceId, label };
   }
 
-  const inserted = await db
-    .insert(devicesTable)
-    .values({
-      id: deviceId,
-      roomId,
-      label,
-      userAgent,
-      lastSeen: new Date(),
-    })
-    .onConflictDoNothing({ target: devicesTable.id })
-    .returning({ id: devicesTable.id });
+  const existingDevice = await db
+    .select({ id: devicesTable.id })
+    .from(devicesTable)
+    .where(eq(devicesTable.id, deviceId))
+    .limit(1);
 
-  if (inserted.length > 0) {
+  if (existingDevice.length === 0) {
+    await db
+      .insert(devicesTable)
+      .values({
+        id: deviceId,
+        roomId,
+        label,
+        userAgent,
+        lastSeen: new Date(),
+      })
+      .onDuplicateKeyUpdate({ set: { id: sql`id` } });
+
     await db.insert(activityTable).values({
       id: newId(),
       roomId,

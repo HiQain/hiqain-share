@@ -69,12 +69,18 @@ router.post("/blogs", async (req, res) => {
 
 router.delete("/blogs/:blogId", async (req, res) => {
   const { blogId } = DeleteBlogParams.parse(req.params);
-  const deleted = await db.delete(blogsTable).where(eq(blogsTable.id, blogId)).returning({ id: blogsTable.id });
-  if (deleted.length === 0) {
+  const existing = await db
+    .select({ id: blogsTable.id })
+    .from(blogsTable)
+    .where(eq(blogsTable.id, blogId))
+    .limit(1);
+
+  if (existing.length === 0) {
     res.status(404).json({ error: "Blog post not found" });
     return;
   }
 
+  await db.delete(blogsTable).where(eq(blogsTable.id, blogId));
   res.status(204).send();
 });
 
