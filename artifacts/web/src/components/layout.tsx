@@ -105,7 +105,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </a>
         </div>
 
-        <div className="px-4 py-4">
+        <div className="px-4 pt-4">
           <div className="mx-auto max-w-6xl rounded-2xl border border-border/60 bg-gray-200 px-4 py-3 text-center text-sm leading-6 text-slate-800 shadow-sm">
             <span className="font-semibold text-amber-700">Disclaimer:</span>{" "}
             Hiqain is an independent platform. We are{" "}
