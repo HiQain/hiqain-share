@@ -16,10 +16,9 @@ export function SiteFooter() {
       <div className="container mx-auto max-w-6xl px-4 py-6 text-sm text-muted-foreground">
         <div className="grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-start">
           <div className="space-y-3 text-center md:text-left">
-            <p className="text-base font-semibold text-foreground">Phone Number Formatter</p>
+            <p className="text-base font-semibold text-foreground">Hiqain Share</p>
             <p className="max-w-80 leading-6">
-              Simple tools for formatting and validating phone numbers with quick access to the
-              site information you may need.
+              Simple tool for sharing files and text.
             </p>
           </div>
 
