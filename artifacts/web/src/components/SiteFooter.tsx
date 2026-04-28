@@ -17,7 +17,7 @@ export function SiteFooter() {
         <div className="grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-start">
           <div className="space-y-3 text-center md:text-left">
             <p className="text-base font-semibold text-foreground">Phone Number Formatter</p>
-            <p className="max-w-md leading-6">
+            <p className="max-w-80 leading-6">
               Simple tools for formatting and validating phone numbers with quick access to the
               site information you may need.
             </p>
