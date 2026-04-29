@@ -18,9 +18,8 @@ export function SiteFooter() {
           <div className="space-y-3 text-center md:text-left">
             <Link href="/" className="flex items-center gap-2 group">
               <div className="text-primary-foreground rounded-md group-hover:scale-105 transition-transform">
-                <img src="/share_logo.png" alt="Hiqain Share Logo" width={64} height={64} />
+                <img src="/share_logo.png" alt="Hiqain Share Logo" width={180} height={180} />
               </div>
-              <span className="font-bold text-xl tracking-tight text-foreground">Hiqain Share</span>
             </Link>
             <p className="max-w-80 leading-6">
               Simple tool for sharing files and text.

@@ -34,12 +34,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-16 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <div className="text-primary-foreground rounded-md group-hover:scale-105 transition-transform">
-              <img src="/share_logo.png" alt="Hiqain Share Logo" width={64} height={64} />
+              <img src="/share_logo.png" alt="Hiqain Share Logo" width={80} height={80} />
             </div>
-            <span className="font-bold text-xl tracking-tight text-foreground">Hiqain Share</span>
           </Link>
 
           {/* Desktop Nav */}
