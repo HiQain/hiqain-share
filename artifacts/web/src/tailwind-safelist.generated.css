@@ -251,7 +251,6 @@
 @source inline("bg-card");
 @source inline("bg-destructive");
 @source inline("bg-foreground");
-@source inline("bg-gray-200");
 @source inline("bg-gray-50");
 @source inline("bg-green-50");
 @source inline("bg-input");
@@ -1140,10 +1139,8 @@
 @source inline("text-3xl");
 @source inline("text-4xl");
 @source inline("text-accent-foreground");
-@source inline("text-amber-700");
 @source inline("text-balance");
 @source inline("text-base");
-@source inline("text-black");
 @source inline("text-card-foreground");
 @source inline("text-center");
 @source inline("text-current");
@@ -1166,7 +1163,6 @@
 @source inline("text-secondary-foreground");
 @source inline("text-sidebar-foreground");
 @source inline("text-sidebar-foreground/70");
-@source inline("text-slate-800");
 @source inline("text-sm");
 @source inline("text-sm/relaxed");
 @source inline("text-xl");
