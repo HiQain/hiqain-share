@@ -49,7 +49,7 @@ export function SiteFooter() {
 
       <div className="container mx-auto max-w-6xl px-4 pb-4 text-sm text-muted-foreground">
         <div className="flex flex-col items-center justify-between gap-3 border-t border-border/70 pt-4 text-center text-xs leading-6 md:flex-row">
-          <p>Copyright © 2026 Hiqain Share. All rights reserved.</p>
+          <p>Copyright © 2026 Air4Share. All rights reserved.</p>
           <div className="md:text-right">
             <a
               href="https://hiqain.com/"
