@@ -459,6 +459,7 @@
 @source inline("data-testid=");
 @source inline("data-variant=");
 @source inline("decodeURIComponent(cookieMatch[1])");
+@source inline("device-to-device");
 @source inline("disabled:cursor-not-allowed");
 @source inline("disabled:opacity-50");
 @source inline("disabled:pointer-events-none");
@@ -757,6 +758,7 @@
 @source inline("justify-start");
 @source inline("kbd-group");
 @source inline("LANGUAGE_OPTIONS)[number][");
+@source inline("last-used");
 @source inline("last:mt-0");
 @source inline("last:rounded-r-md");
 @source inline("leading-6");
@@ -892,7 +894,6 @@
 @source inline("navLinks[0].href");
 @source inline("navLinks[0].label");
 @source inline("next-themes");
-@source inline("non-identifying");
 @source inline("nth-last-2:-mt-1");
 @source inline("object-contain");
 @source inline("object-cover");
@@ -931,6 +932,7 @@
 @source inline("p-4");
 @source inline("p-6");
 @source inline("p-8");
+@source inline("page-view");
 @source inline("path=/");
 @source inline("payload[key");
 @source inline("payload]");
@@ -947,6 +949,8 @@
 @source inline("peer-disabled:cursor-not-allowed");
 @source inline("peer-disabled:opacity-70");
 @source inline("peer-hover/menu-button:text-sidebar-accent-foreground");
+@source inline("peer-to-peer");
+@source inline("peer-to-peer.");
 @source inline("peer/field-label");
 @source inline("peer/menu-button");
 @source inline("phone-formatter-language");
@@ -954,6 +958,7 @@
 @source inline("pl-2.5");
 @source inline("pl-3");
 @source inline("pl-4");
+@source inline("pl-6");
 @source inline("pl-8");
 @source inline("place-content-center");
 @source inline("placeholder:text-muted-foreground");
@@ -965,7 +970,6 @@
 @source inline("pr-3");
 @source inline("pr-8");
 @source inline("prefix])");
-@source inline("privacy-related");
 @source inline("pt-0");
 @source inline("pt-1");
 @source inline("pt-3");
@@ -1031,6 +1035,7 @@
 @source inline("select-none");
 @source inline("self-start");
 @source inline("self-stretch");
+@source inline("session-scoped.");
 @source inline("setActiveTab]");
 @source inline("setApi])");
 @source inline("setCanScrollNext]");
@@ -1121,6 +1126,7 @@
 @source inline("sm:w-auto");
 @source inline("space-x-1");
 @source inline("space-x-4");
+@source inline("space-y-1");
 @source inline("space-y-1.5");
 @source inline("space-y-2");
 @source inline("space-y-3");
@@ -1141,6 +1147,7 @@
 @source inline("text-accent-foreground");
 @source inline("text-balance");
 @source inline("text-base");
+@source inline("text-blue-500");
 @source inline("text-card-foreground");
 @source inline("text-center");
 @source inline("text-current");
@@ -1201,6 +1208,7 @@
 @source inline("translate-x-px");
 @source inline("translate-y-[-50%]");
 @source inline("translateX(-");
+@source inline("underline");
 @source inline("underline-offset-4");
 @source inline("uniqueId.replace(/:/g,");
 @source inline("UseCarouselParameters[0]");
