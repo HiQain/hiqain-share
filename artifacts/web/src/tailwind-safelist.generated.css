@@ -173,6 +173,8 @@
 @source inline("[modifiers.focused])");
 @source inline("[openMobile,");
 @source inline("[password,");
+@source inline("[pendingUploads,");
+@source inline("[pendingUploads])");
 @source inline("[previewFile,");
 @source inline("[scrollPrev,");
 @source inline("[selectedLanguage,");
@@ -183,6 +185,7 @@
 @source inline("[textContent,");
 @source inline("[toggleSidebar])");
 @source inline("[translatorStatus,");
+@source inline("[uploadProgressValue,");
 @source inline("]");
 @source inline("],");
 @source inline("]:focus-visible:relative");
@@ -870,7 +873,6 @@
 @source inline("min-w-8");
 @source inline("min-w-9");
 @source inline("ml-1");
-@source inline("ml-2");
 @source inline("ml-4");
 @source inline("ml-auto");
 @source inline("mr-1.5");
@@ -1050,12 +1052,14 @@
 @source inline("setOpenMobile]");
 @source inline("setOpenMobile])");
 @source inline("setPassword]");
+@source inline("setPendingUploads]");
 @source inline("setPreviewFile]");
 @source inline("setSelectedLanguage]");
 @source inline("setState]");
 @source inline("setSubmitted]");
 @source inline("setTextContent]");
 @source inline("setTranslatorStatus]");
+@source inline("setUploadProgressValue]");
 @source inline("shadow-[0_0_0_1px_hsl(var(--sidebar-border))]");
 @source inline("shadow-lg");
 @source inline("shadow-md");

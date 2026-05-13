@@ -18,10 +18,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { FileIcon, Trash2, Download, Copy, Save, Clock, UploadCloud, Type, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 
 const POLL_INTERVAL = 3000;
 const MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = "1GB";
+type BoardFileItem = {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  mimeType: string;
+  deviceLabel: string;
+};
 
 const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
 
@@ -101,6 +109,8 @@ export function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"text" | "files">("text");
   const [previewFile, setPreviewFile] = useState<{ id: string; name: string } | null>(null);
+  const [pendingUploads, setPendingUploads] = useState(0);
+  const [uploadProgressValue, setUploadProgressValue] = useState(18);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync text from server if not editing
@@ -111,6 +121,19 @@ export function Home() {
       setTextContent("");
     }
   }, [board?.text]);
+
+  useEffect(() => {
+    if (pendingUploads <= 0) {
+      setUploadProgressValue(18);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setUploadProgressValue((current) => (current >= 82 ? 28 : current + 9));
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [pendingUploads]);
 
   const handleSaveText = () => {
     if (!textContent.trim()) return;
@@ -159,9 +182,27 @@ export function Home() {
       }
 
       const reader = new FileReader();
+      setPendingUploads((count) => count + 1);
+
+      reader.onerror = () => {
+        setPendingUploads((count) => Math.max(0, count - 1));
+        toast({
+          title: "Upload failed",
+          description: `Could not read ${file.name}.`,
+          variant: "destructive",
+        });
+      };
+
+      reader.onabort = () => {
+        setPendingUploads((count) => Math.max(0, count - 1));
+      };
+
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        if (!result) return;
+        if (!result) {
+          setPendingUploads((count) => Math.max(0, count - 1));
+          return;
+        }
         
         const base64Data = result.split(",")[1];
         
@@ -173,11 +214,13 @@ export function Home() {
           }
         }, {
           onSuccess: () => {
+            setPendingUploads((count) => Math.max(0, count - 1));
             toast({ title: "File uploaded", description: `${file.name} shared successfully.` });
             queryClient.invalidateQueries({ queryKey: getGetBoardQueryKey() });
             queryClient.invalidateQueries({ queryKey: getListFilesQueryKey() });
           },
           onError: () => {
+            setPendingUploads((count) => Math.max(0, count - 1));
             toast({ title: "Upload failed", description: `Could not upload ${file.name}.`, variant: "destructive" });
           }
         });
@@ -262,7 +305,6 @@ export function Home() {
               <div className="bg-muted/30 px-4 py-3 flex items-center justify-between border-t">
                 <div className="text-xs text-muted-foreground">
                   {textContent.length} chars
-                  {board?.text && <span className="ml-2">• Last saved by {board.text.deviceLabel}</span>}
                 </div>
                 <div className="flex gap-2">
                   {board?.text && (
@@ -317,10 +359,22 @@ export function Home() {
                 <p className="text-xs text-muted-foreground">Available instantly to everyone on your network</p>
               </div>
 
+              {pendingUploads > 0 && (
+                <div className="mt-4 rounded-lg border bg-muted/30 px-4 py-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">
+                      Uploading {pendingUploads} file{pendingUploads > 1 ? "s" : ""}...
+                    </p>
+                    <span className="text-xs text-muted-foreground">Please wait</span>
+                  </div>
+                  <Progress value={uploadProgressValue} className="h-2" />
+                </div>
+              )}
+
               {isBoardLoading ? null : board?.files && board.files.length > 0 ? (
                 <div className="mt-6 space-y-3">
                   <h3 className="text-sm font-medium text-muted-foreground">Currently on board</h3>
-                  {board.files.map((file) => {
+                  {board.files.map((file: BoardFileItem) => {
                     const isImage = isImageMime(file.mimeType);
                     return (
                     <div
