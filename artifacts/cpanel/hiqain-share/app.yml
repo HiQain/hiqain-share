@@ -1,0 +1,5 @@
+runtime: nodejs20
+env:
+  PORT: 3000
+  DATABASE_URL: mysql://air4share_my_user:EWqf84ANrMdon@localhost:3306/air4share_db
+  USE_IN_MEMORY_STORE: false
