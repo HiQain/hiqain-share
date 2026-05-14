@@ -38,11 +38,14 @@
 @source inline("!m-0");
 @source inline("...state.toasts].slice(0,");
 @source inline(".[0]");
+@source inline(".[1]");
 @source inline(".[1])");
 @source inline(".[theme");
 @source inline(".goog-te-combo");
 @source inline(".map(([key,");
+@source inline(".match(/filename=");
 @source inline(".text])");
+@source inline("([");
 @source inline("([,");
 @source inline("([theme,");
 @source inline(")[1]");
@@ -160,10 +163,12 @@
 @source inline("[carouselRef,");
 @source inline("[children,");
 @source inline("[data-chart=");
+@source inline("[data])");
 @source inline("[email,");
 @source inline("[form,");
 @source inline("[isAuthenticatedState,");
 @source inline("[isDarkMode,");
+@source inline("[isDownloadingAll,");
 @source inline("[isDragging,");
 @source inline("[isMobile,");
 @source inline("[item]");
@@ -171,6 +176,7 @@
 @source inline("[location]");
 @source inline("[mobileMenuOpen,");
 @source inline("[modifiers.focused])");
+@source inline("[objectUrl,");
 @source inline("[openMobile,");
 @source inline("[password,");
 @source inline("[pendingUploads,");
@@ -183,6 +189,7 @@
 @source inline("[state])");
 @source inline("[submitted,");
 @source inline("[textContent,");
+@source inline("[textPreview,");
 @source inline("[toggleSidebar])");
 @source inline("[translatorStatus,");
 @source inline("[uploadProgressValue,");
@@ -202,6 +209,7 @@
 @source inline("]]:stroke-border");
 @source inline("]]:stroke-border/50");
 @source inline("]]:stroke-transparent");
+@source inline("]+)");
 @source inline("]+)/)");
 @source inline("=from-]:animate-in");
 @source inline("=from-]:fade-in");
@@ -222,13 +230,17 @@
 @source inline("after:left-1/2");
 @source inline("after:w-[2px]");
 @source inline("after:w-1");
+@source inline("air4share-board.zip");
 @source inline("align-middle");
 @source inline("animate-caret-blink");
 @source inline("animate-in");
 @source inline("animate-pulse");
 @source inline("animate-spin");
 @source inline("api]");
+@source inline("application/json");
 @source inline("application/octet-stream");
+@source inline("application/pdf");
+@source inline("application/xml");
 @source inline("aria-current=");
 @source inline("aria-describedby=");
 @source inline("aria-disabled:opacity-50");
@@ -242,6 +254,7 @@
 @source inline("aria-selected:text-muted-foreground");
 @source inline("aspect-square");
 @source inline("aspect-video");
+@source inline("audio/");
 @source inline("backdrop-blur");
 @source inline("basis-full");
 @source inline("bg-[--color-bg]");
@@ -249,6 +262,7 @@
 @source inline("bg-background");
 @source inline("bg-background/60");
 @source inline("bg-background/95");
+@source inline("bg-black");
 @source inline("bg-black/80");
 @source inline("bg-border");
 @source inline("bg-card");
@@ -270,7 +284,7 @@
 @source inline("bg-sidebar");
 @source inline("bg-sidebar-border");
 @source inline("bg-transparent");
-@source inline("Blob([byteArray],");
+@source inline("Blob([new");
 @source inline("block");
 @source inline("block-end");
 @source inline("block-start");
@@ -328,6 +342,7 @@
 @source inline("config]");
 @source inline("config])");
 @source inline("container");
+@source inline("content-disposition");
 @source inline("cursor-default");
 @source inline("cursor-pointer");
 @source inline("cursor-text");
@@ -635,6 +650,7 @@
 @source inline("grow-0");
 @source inline("h-[--cell-size]");
 @source inline("h-[1px]");
+@source inline("h-[70vh]");
 @source inline("h-[var(--radix-navigation-menu-viewport-height)]");
 @source inline("h-[var(--radix-select-trigger-height)]");
 @source inline("h-1.5");
@@ -758,6 +774,7 @@
 @source inline("items-stretch");
 @source inline("justify-between");
 @source inline("justify-center");
+@source inline("justify-end");
 @source inline("justify-start");
 @source inline("kbd-group");
 @source inline("LANGUAGE_OPTIONS)[number][");
@@ -1046,9 +1063,11 @@
 @source inline("setForm]");
 @source inline("setIsAuthenticated]");
 @source inline("setIsDarkMode]");
+@source inline("setIsDownloadingAll]");
 @source inline("setIsDragging]");
 @source inline("setIsMobile]");
 @source inline("setMobileMenuOpen]");
+@source inline("setObjectUrl]");
 @source inline("setOpenMobile]");
 @source inline("setOpenMobile])");
 @source inline("setPassword]");
@@ -1058,6 +1077,7 @@
 @source inline("setState]");
 @source inline("setSubmitted]");
 @source inline("setTextContent]");
+@source inline("setTextPreview]");
 @source inline("setTranslatorStatus]");
 @source inline("setUploadProgressValue]");
 @source inline("shadow-[0_0_0_1px_hsl(var(--sidebar-border))]");
@@ -1178,6 +1198,7 @@
 @source inline("text-sm/relaxed");
 @source inline("text-xl");
 @source inline("text-xs");
+@source inline("text/");
 @source inline("third-party");
 @source inline("Third-Party");
 @source inline("toast-close=");
@@ -1212,6 +1233,7 @@
 @source inline("translate-x-px");
 @source inline("translate-y-[-50%]");
 @source inline("translateX(-");
+@source inline("Uint8Array(byteNumbers)],");
 @source inline("underline");
 @source inline("underline-offset-4");
 @source inline("uniqueId.replace(/:/g,");
@@ -1221,6 +1243,7 @@
 @source inline("useEmblaCarousel>[1]");
 @source inline("UseEmblaCarouselType[1]");
 @source inline("UTF-8");
+@source inline("video/");
 @source inline("w-");
 @source inline("w-[--cell-size]");
 @source inline("w-[100px]");
@@ -1253,6 +1276,7 @@
 @source inline("w-max");
 @source inline("w-px");
 @source inline("whitespace-nowrap");
+@source inline("whitespace-pre-wrap");
 @source inline("Wi-Fi");
 @source inline("Wi-Fi,");
 @source inline("width=device-width,");

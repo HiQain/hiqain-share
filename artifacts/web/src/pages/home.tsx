@@ -23,6 +23,7 @@ import { Progress } from "@/components/ui/progress";
 const POLL_INTERVAL = 3000;
 const MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = "1GB";
+
 type BoardFileItem = {
   id: string;
   name: string;
@@ -32,6 +33,40 @@ type BoardFileItem = {
 };
 
 const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
+const isVideoMime = (mime: string) => mime.toLowerCase().startsWith("video/");
+const isAudioMime = (mime: string) => mime.toLowerCase().startsWith("audio/");
+const isPdfMime = (mime: string) => mime.toLowerCase() === "application/pdf";
+const isTextLikeMime = (mime: string) => {
+  const normalized = mime.toLowerCase();
+  return (
+    normalized.startsWith("text/") ||
+    normalized === "application/json" ||
+    normalized === "application/xml" ||
+    normalized.endsWith("+json") ||
+    normalized.endsWith("+xml") ||
+    normalized.includes("javascript")
+  );
+};
+
+function base64ToBlob(dataBase64: string, mimeType: string): Blob {
+  const byteCharacters = atob(dataBase64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  return new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
+}
+
+function triggerBrowserDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
 
 function DownloadButton({ fileId }: { fileId: string }) {
   const { refetch, isFetching } = useDownloadFile(fileId, {
@@ -42,21 +77,7 @@ function DownloadButton({ fileId }: { fileId: string }) {
     e.stopPropagation();
     const { data } = await refetch();
     if (data?.dataBase64) {
-      const byteCharacters = atob(data.dataBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: data.mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = data.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      triggerBrowserDownload(base64ToBlob(data.dataBase64, data.mimeType), data.name);
     }
   };
 
@@ -77,6 +98,29 @@ function ImagePreviewContent({ fileId }: { fileId: string }) {
       refetchOnReconnect: false,
     },
   });
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [textPreview, setTextPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!data?.dataBase64) {
+      setObjectUrl(null);
+      setTextPreview(null);
+      return;
+    }
+
+    const blob = base64ToBlob(data.dataBase64, data.mimeType);
+    const url = URL.createObjectURL(blob);
+    setObjectUrl(url);
+
+    if (isTextLikeMime(data.mimeType)) {
+      blob.text().then(setTextPreview).catch(() => setTextPreview("Preview is unavailable for this file."));
+    } else {
+      setTextPreview(null);
+    }
+
+    return () => URL.revokeObjectURL(url);
+  }, [data]);
+
   if (isFetching || !data?.dataBase64) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -84,10 +128,48 @@ function ImagePreviewContent({ fileId }: { fileId: string }) {
       </div>
     );
   }
-  const src = `data:${data.mimeType};base64,${data.dataBase64}`;
+
+  if (isImageMime(data.mimeType)) {
+    return (
+      <div className="flex items-center justify-center rounded-md bg-muted/30 overflow-hidden">
+        <img src={objectUrl ?? undefined} alt={data.name} className="max-h-[70vh] max-w-full object-contain" />
+      </div>
+    );
+  }
+
+  if (isVideoMime(data.mimeType)) {
+    return (
+      <video src={objectUrl ?? undefined} controls className="max-h-[70vh] w-full rounded-md bg-black" />
+    );
+  }
+
+  if (isAudioMime(data.mimeType)) {
+    return (
+      <div className="rounded-md border bg-muted/20 p-6">
+        <audio src={objectUrl ?? undefined} controls className="w-full" />
+      </div>
+    );
+  }
+
+  if (isPdfMime(data.mimeType) && objectUrl) {
+    return <iframe src={objectUrl} title={data.name} className="h-[70vh] w-full rounded-md border bg-background" />;
+  }
+
+  if (isTextLikeMime(data.mimeType)) {
+    return (
+      <div className="max-h-[70vh] overflow-auto rounded-md border bg-muted/20 p-4">
+        <pre className="whitespace-pre-wrap break-words text-sm">{textPreview ?? "Loading preview..."}</pre>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center bg-muted/30 rounded-md overflow-hidden">
-      <img src={src} alt={data.name} className="max-h-[70vh] max-w-full object-contain" />
+    <div className="rounded-md border bg-muted/20 p-6 text-center">
+      <p className="text-sm text-muted-foreground">Preview is not available for this file type.</p>
+      <Button className="mt-4" onClick={() => triggerBrowserDownload(base64ToBlob(data.dataBase64, data.mimeType), data.name)}>
+        <Download className="mr-2 h-4 w-4" />
+        Download file
+      </Button>
     </div>
   );
 }
@@ -108,9 +190,10 @@ export function Home() {
   const [textContent, setTextContent] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<"text" | "files">("text");
-  const [previewFile, setPreviewFile] = useState<{ id: string; name: string } | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ id: string; name: string; mimeType: string } | null>(null);
   const [pendingUploads, setPendingUploads] = useState(0);
   const [uploadProgressValue, setUploadProgressValue] = useState(18);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync text from server if not editing
@@ -238,6 +321,31 @@ export function Home() {
     });
   };
 
+  const handleDownloadAll = async () => {
+    try {
+      setIsDownloadingAll(true);
+      const response = await fetch("/api/files/download-all");
+      if (!response.ok) {
+        throw new Error("Archive download failed");
+      }
+      const blob = await response.blob();
+      const fileName =
+        response.headers
+          .get("content-disposition")
+          ?.match(/filename=\"?([^"]+)\"?/)?.[1] ?? "air4share-board.zip";
+
+      triggerBrowserDownload(blob, fileName);
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not create the zip archive.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
@@ -302,10 +410,7 @@ export function Home() {
                   onChange={(e) => setTextContent(e.target.value)}
                 />
               </div>
-              <div className="bg-muted/30 px-4 py-3 flex items-center justify-between border-t">
-                <div className="text-xs text-muted-foreground">
-                  {textContent.length} chars
-                </div>
+              <div className="bg-muted/30 px-4 py-3 flex items-center justify-end border-t">
                 <div className="flex gap-2">
                   {board?.text && (
                     <>
@@ -373,14 +478,20 @@ export function Home() {
 
               {isBoardLoading ? null : board?.files && board.files.length > 0 ? (
                 <div className="mt-6 space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground">Currently on board</h3>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-medium text-muted-foreground">Currently on board</h3>
+                    <Button variant="outline" size="sm" onClick={handleDownloadAll} disabled={isDownloadingAll}>
+                      <Download className="mr-2 h-4 w-4" />
+                      {isDownloadingAll ? "Preparing zip..." : "Download all"}
+                    </Button>
+                  </div>
                   {board.files.map((file: BoardFileItem) => {
                     const isImage = isImageMime(file.mimeType);
                     return (
                     <div
                       key={file.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/30 transition-colors group ${isImage ? 'cursor-pointer' : ''}`}
-                      onClick={isImage ? () => setPreviewFile({ id: file.id, name: file.name }) : undefined}
+                      className="group flex cursor-pointer items-center justify-between rounded-lg border bg-card p-3 transition-colors hover:border-primary/30"
+                      onClick={() => setPreviewFile({ id: file.id, name: file.name, mimeType: file.mimeType })}
                     >
                       <div className="flex items-center gap-3 overflow-hidden">
                         <div className="bg-primary/10 p-2 rounded-md shrink-0">
@@ -395,8 +506,7 @@ export function Home() {
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span>{(file.sizeBytes / 1024).toFixed(1)} KB</span>
                             <span>•</span>
-                            <span>By {file.deviceLabel}</span>
-                            {isImage && <><span>•</span><span className="text-primary">Click to preview</span></>}
+                            <span className="text-primary">Click to preview</span>
                           </div>
                         </div>
                       </div>
