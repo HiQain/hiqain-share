@@ -45,6 +45,7 @@
 @source inline(".map(([key,");
 @source inline(".match(/filename=");
 @source inline(".text])");
+@source inline("(!current[uploadKey])");
 @source inline("([");
 @source inline("([,");
 @source inline("([theme,");
@@ -166,6 +167,7 @@
 @source inline("[data])");
 @source inline("[email,");
 @source inline("[form,");
+@source inline("[index,");
 @source inline("[isAuthenticatedState,");
 @source inline("[isDarkMode,");
 @source inline("[isDownloadingAll,");
@@ -192,6 +194,8 @@
 @source inline("[textPreview,");
 @source inline("[toggleSidebar])");
 @source inline("[translatorStatus,");
+@source inline("[uploadProgressItems,");
+@source inline("[uploadProgressItems])");
 @source inline("[uploadProgressValue,");
 @source inline("]");
 @source inline("],");
@@ -343,6 +347,7 @@
 @source inline("config])");
 @source inline("container");
 @source inline("content-disposition");
+@source inline("current[uploadKey]");
 @source inline("cursor-default");
 @source inline("cursor-pointer");
 @source inline("cursor-text");
@@ -515,6 +520,7 @@
 @source inline("file:text-foreground");
 @source inline("file:text-sm");
 @source inline("File[])");
+@source inline("file]");
 @source inline("fill-current");
 @source inline("fill-primary");
 @source inline("first:border-l");
@@ -913,6 +919,7 @@
 @source inline("navLinks[0].href");
 @source inline("navLinks[0].label");
 @source inline("next-themes");
+@source inline("next[uploadKey]");
 @source inline("nth-last-2:-mt-1");
 @source inline("object-contain");
 @source inline("object-cover");
@@ -1079,6 +1086,7 @@
 @source inline("setTextContent]");
 @source inline("setTextPreview]");
 @source inline("setTranslatorStatus]");
+@source inline("setUploadProgressItems]");
 @source inline("setUploadProgressValue]");
 @source inline("shadow-[0_0_0_1px_hsl(var(--sidebar-border))]");
 @source inline("shadow-lg");

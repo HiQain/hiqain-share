@@ -23,6 +23,7 @@ import { Progress } from "@/components/ui/progress";
 const POLL_INTERVAL = 3000;
 const MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = "1GB";
+const READ_PROGRESS_SHARE = 0.9;
 
 type BoardFileItem = {
   id: string;
@@ -30,6 +31,11 @@ type BoardFileItem = {
   sizeBytes: number;
   mimeType: string;
   deviceLabel: string;
+};
+
+type UploadProgressItem = {
+  progress: number;
+  sizeBytes: number;
 };
 
 const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
@@ -192,8 +198,9 @@ export function Home() {
   const [activeTab, setActiveTab] = useState<"text" | "files">("text");
   const [previewFile, setPreviewFile] = useState<{ id: string; name: string; mimeType: string } | null>(null);
   const [pendingUploads, setPendingUploads] = useState(0);
-  const [uploadProgressValue, setUploadProgressValue] = useState(18);
+  const [uploadProgressValue, setUploadProgressValue] = useState(0);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [uploadProgressItems, setUploadProgressItems] = useState<Record<string, UploadProgressItem>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync text from server if not editing
@@ -207,16 +214,70 @@ export function Home() {
 
   useEffect(() => {
     if (pendingUploads <= 0) {
-      setUploadProgressValue(18);
+      setUploadProgressValue(0);
+      setUploadProgressItems({});
+      return;
+    }
+  }, [pendingUploads]);
+
+  useEffect(() => {
+    const items = Object.values(uploadProgressItems);
+    if (items.length === 0) {
       return;
     }
 
-    const interval = window.setInterval(() => {
-      setUploadProgressValue((current) => (current >= 82 ? 28 : current + 9));
-    }, 250);
+    const totalBytes = items.reduce((sum, item) => sum + item.sizeBytes, 0);
+    if (totalBytes <= 0) {
+      setUploadProgressValue(0);
+      return;
+    }
 
-    return () => window.clearInterval(interval);
-  }, [pendingUploads]);
+    const uploadedBytes = items.reduce(
+      (sum, item) => sum + item.sizeBytes * item.progress,
+      0,
+    );
+    setUploadProgressValue(Math.round((uploadedBytes / totalBytes) * 100));
+  }, [uploadProgressItems]);
+
+  const registerUpload = (uploadKey: string, sizeBytes: number) => {
+    setUploadProgressItems((current) => ({
+      ...current,
+      [uploadKey]: {
+        progress: 0,
+        sizeBytes,
+      },
+    }));
+  };
+
+  const updateUploadProgress = (uploadKey: string, nextProgress: number) => {
+    setUploadProgressItems((current) => {
+      const existing = current[uploadKey];
+      if (!existing) {
+        return current;
+      }
+
+      const normalizedProgress = Math.min(1, Math.max(existing.progress, nextProgress));
+      return {
+        ...current,
+        [uploadKey]: {
+          ...existing,
+          progress: normalizedProgress,
+        },
+      };
+    });
+  };
+
+  const removeUpload = (uploadKey: string) => {
+    setUploadProgressItems((current) => {
+      if (!current[uploadKey]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[uploadKey];
+      return next;
+    });
+  };
 
   const handleSaveText = () => {
     if (!textContent.trim()) return;
@@ -254,21 +315,36 @@ export function Home() {
   };
 
   const handleFiles = async (files: File[]) => {
-    for (const file of files) {
+    const acceptedFiles = files.filter((file) => {
       if (file.size > MAX_UPLOAD_SIZE_BYTES) {
         toast({
           title: "File too large",
           description: `${file.name} exceeds the ${MAX_UPLOAD_SIZE_LABEL} limit.`,
           variant: "destructive",
         });
-        continue;
+        return false;
       }
+      return true;
+    });
+
+    for (const [index, file] of acceptedFiles.entries()) {
+      const uploadKey = `${file.name}-${file.lastModified}-${file.size}-${index}-${Date.now()}`;
 
       const reader = new FileReader();
       setPendingUploads((count) => count + 1);
+      registerUpload(uploadKey, file.size);
+
+      reader.onprogress = (event) => {
+        if (!event.lengthComputable || event.total <= 0) {
+          return;
+        }
+
+        updateUploadProgress(uploadKey, (event.loaded / event.total) * READ_PROGRESS_SHARE);
+      };
 
       reader.onerror = () => {
         setPendingUploads((count) => Math.max(0, count - 1));
+        removeUpload(uploadKey);
         toast({
           title: "Upload failed",
           description: `Could not read ${file.name}.`,
@@ -278,17 +354,20 @@ export function Home() {
 
       reader.onabort = () => {
         setPendingUploads((count) => Math.max(0, count - 1));
+        removeUpload(uploadKey);
       };
 
       reader.onload = (e) => {
         const result = e.target?.result as string;
         if (!result) {
           setPendingUploads((count) => Math.max(0, count - 1));
+          removeUpload(uploadKey);
           return;
         }
-        
+
+        updateUploadProgress(uploadKey, 0.95);
         const base64Data = result.split(",")[1];
-        
+
         uploadFile.mutate({
           data: {
             name: file.name,
@@ -297,6 +376,7 @@ export function Home() {
           }
         }, {
           onSuccess: () => {
+            updateUploadProgress(uploadKey, 1);
             setPendingUploads((count) => Math.max(0, count - 1));
             toast({ title: "File uploaded", description: `${file.name} shared successfully.` });
             queryClient.invalidateQueries({ queryKey: getGetBoardQueryKey() });
@@ -304,6 +384,7 @@ export function Home() {
           },
           onError: () => {
             setPendingUploads((count) => Math.max(0, count - 1));
+            removeUpload(uploadKey);
             toast({ title: "Upload failed", description: `Could not upload ${file.name}.`, variant: "destructive" });
           }
         });
@@ -470,7 +551,7 @@ export function Home() {
                     <p className="text-sm font-medium">
                       Uploading {pendingUploads} file{pendingUploads > 1 ? "s" : ""}...
                     </p>
-                    <span className="text-xs text-muted-foreground">Please wait</span>
+                    <span className="text-xs text-muted-foreground">{uploadProgressValue}%</span>
                   </div>
                   <Progress value={uploadProgressValue} className="h-2" />
                 </div>
