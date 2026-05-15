@@ -8,9 +8,13 @@ import NotFound from "@/pages/not-found";
 import { Home } from "@/pages/home";
 import { HowItWorks } from "@/pages/how-it-works";
 import { Admin } from "@/pages/admin";
+import { AdminBlogListPage } from "@/pages/admin-blog-list";
+import { AdminBlogNewPage } from "@/pages/admin-blog-new";
 import { Blog } from "@/pages/blog";
+import { BlogDetailPage } from "@/pages/blog-detail";
 import { PrivacyPolicy } from "@/pages/privacy-policy";
 import { TermsOfService } from "@/pages/terms-of-service";
+import { FilePreviewPage } from "@/pages/file-preview";
 import ContactPage from "./pages/contact";
 import DisclaimerPage from "./pages/disclaimer";
 
@@ -25,10 +29,14 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/admin" component={Admin} />
+        <Route path="/admin/blogs" component={AdminBlogListPage} />
+        <Route path="/admin/blogs/new" component={AdminBlogNewPage} />
         <Route path="/how-it-works" component={HowItWorks} />
         <Route path="/blog" component={Blog} />
+        <Route path="/blog/:id" component={BlogDetailPage} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/disclaimer" component={DisclaimerPage} />
+        <Route path="/files/:id" component={FilePreviewPage} />
         <Route path="/privacy-policy" component={PrivacyPolicy} />
         <Route path="/terms-of-service" component={TermsOfService} />
         <Route component={NotFound} />
