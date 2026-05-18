@@ -126,9 +126,21 @@ export function FilePreviewPage() {
           <p className="text-sm text-destructive">{error}</p>
         </div>
       ) : data && objectUrl && isImageMime(data.mimeType) ? (
-        <img src={objectUrl} alt={data.name} className="min-h-screen w-full object-contain" />
+        <div className="flex min-h-[calc(100vh-5rem)] items-center justify-center p-4 sm:p-6">
+          <img
+            src={objectUrl}
+            alt={data.name}
+            className="block max-h-[calc(100vh-8rem)] max-w-full h-auto w-auto rounded-xl object-contain shadow-2xl"
+          />
+        </div>
       ) : data && objectUrl && isVideoMime(data.mimeType) ? (
-        <video src={objectUrl} controls className="min-h-screen w-full bg-black object-contain" />
+        <div className="flex min-h-[calc(100vh-5rem)] items-center justify-center p-4 sm:p-6">
+          <video
+            src={objectUrl}
+            controls
+            className="block max-h-[calc(100vh-8rem)] max-w-full rounded-xl bg-black object-contain shadow-2xl"
+          />
+        </div>
       ) : data && objectUrl && isPdfMime(data.mimeType) ? (
         <iframe src={objectUrl} title={data.name} className="h-screen w-full bg-background" />
       ) : data && objectUrl && isAudioMime(data.mimeType) ? (

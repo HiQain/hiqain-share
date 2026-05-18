@@ -49,6 +49,7 @@
 @source inline(".replace(/");
 @source inline(".replace(/javascript:/gi,");
 @source inline(".split(/");
+@source inline(".split(/[+");
 @source inline(".text])");
 @source inline("([");
 @source inline("([,");
@@ -239,6 +240,7 @@
 @source inline("]]:stroke-border");
 @source inline("]]:stroke-border/50");
 @source inline("]]:stroke-transparent");
+@source inline("]/)[0]");
 @source inline("]+)");
 @source inline("]+)/)");
 @source inline("=from-]:animate-in");
@@ -297,6 +299,7 @@
 @source inline("bg-accent");
 @source inline("bg-background");
 @source inline("bg-background/80");
+@source inline("bg-background/85");
 @source inline("bg-background/95");
 @source inline("bg-black");
 @source inline("bg-black/40");
@@ -364,6 +367,7 @@
 @source inline("border-white/10");
 @source inline("border-y");
 @source inline("bottom-0");
+@source inline("bottom-3");
 @source inline("break-words");
 @source inline("button-group");
 @source inline("button-group-separator");
@@ -802,6 +806,7 @@
 @source inline("inputOTPContext.slots[index]");
 @source inline("inset-0");
 @source inline("inset-x-0");
+@source inline("inset-x-3");
 @source inline("inset-y-0");
 @source inline("italic");
 @source inline("item-actions");
@@ -844,6 +849,7 @@
 @source inline("max-h-[--radix-context-menu-content-available-height]");
 @source inline("max-h-[--radix-select-content-available-height]");
 @source inline("max-h-[300px]");
+@source inline("max-h-[calc(100vh-8rem)]");
 @source inline("max-h-[var(--radix-dropdown-menu-content-available-height)]");
 @source inline("max-h-72");
 @source inline("max-h-screen");
@@ -854,6 +860,7 @@
 @source inline("max-w-5xl");
 @source inline("max-w-6xl");
 @source inline("max-w-80");
+@source inline("max-w-full");
 @source inline("max-w-lg");
 @source inline("max-w-max");
 @source inline("max-w-md");
@@ -919,9 +926,9 @@
 @source inline("min-h-[220px]");
 @source inline("min-h-[260px]");
 @source inline("min-h-[60px]");
+@source inline("min-h-[calc(100vh-5rem)]");
 @source inline("min-h-0");
 @source inline("min-h-10");
-@source inline("min-h-12");
 @source inline("min-h-14");
 @source inline("min-h-32");
 @source inline("min-h-36");
@@ -1152,6 +1159,7 @@
 @source inline("setTranslatorStatus]");
 @source inline("setUploadQueue]");
 @source inline("shadow-[0_0_0_1px_hsl(var(--sidebar-border))]");
+@source inline("shadow-2xl");
 @source inline("shadow-lg");
 @source inline("shadow-md");
 @source inline("shadow-none");
@@ -1203,6 +1211,7 @@
 @source inline("sm:justify-end");
 @source inline("sm:max-w-sm");
 @source inline("sm:mt-0");
+@source inline("sm:p-6");
 @source inline("sm:px-6");
 @source inline("sm:px-7");
 @source inline("sm:py-14");
@@ -1238,6 +1247,7 @@
 @source inline("tabular-nums");
 @source inline("tailwind-merge");
 @source inline("text-[0.8rem]");
+@source inline("text-[11px]");
 @source inline("text-2xl");
 @source inline("text-3xl");
 @source inline("text-4xl");
@@ -1288,6 +1298,7 @@
 @source inline("top-1.5");
 @source inline("top-1/2");
 @source inline("top-2");
+@source inline("top-3");
 @source inline("top-3.5");
 @source inline("top-4");
 @source inline("top-full");

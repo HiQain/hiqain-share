@@ -91,6 +91,17 @@ function formatFileSize(sizeBytes: number) {
   return `${(sizeBytes / 1024).toFixed(1)} KB`;
 }
 
+function getFileFormatLabel(fileName: string, mimeType: string) {
+  const extension = fileName.split(".").pop()?.trim();
+
+  if (extension && extension !== fileName) {
+    return extension.toUpperCase();
+  }
+
+  const mimePart = mimeType.split("/")[1]?.split(/[+;]/)[0]?.trim();
+  return mimePart ? mimePart.toUpperCase() : "FILE";
+}
+
 function createPreviewUrl(file: File) {
   if (isImageMime(file.type) || isVideoMime(file.type) || isAudioMime(file.type) || isPdfMime(file.type)) {
     return URL.createObjectURL(file);
@@ -200,7 +211,15 @@ function DownloadButton({ fileId }: { fileId: string }) {
   };
 
   return (
-    <Button variant="secondary" size="icon" className="h-10 w-10" onClick={onDownload} disabled={isFetching}>
+    <Button
+      variant="secondary"
+      size="icon"
+      className="h-10 w-10 shrink-0"
+      onClick={onDownload}
+      disabled={isFetching}
+      aria-label="Download file"
+      title="Download file"
+    >
       <Download className="h-4 w-4" />
     </Button>
   );
@@ -246,7 +265,7 @@ function FileThumb({
   previewUrl?: string | null;
   compact?: boolean;
 }) {
-  const sizeClass = compact ? "h-12 w-12 rounded-lg" : "h-24 w-full rounded-xl";
+  const sizeClass = compact ? "h-12 w-12 rounded-lg" : "h-44 w-full rounded-none";
 
   if (previewUrl && isImageMime(mimeType)) {
     return <img src={previewUrl} alt={fileName} className={`${sizeClass} object-cover`} />;
@@ -583,16 +602,35 @@ export function Home() {
                   <div className="flex gap-2">
                     {board?.text && (
                       <>
-                        <Button variant="outline" size="sm" onClick={handleClearText} disabled={clearText.isPending}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Clear
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleClearText}
+                          disabled={clearText.isPending}
+                          aria-label="Clear text"
+                          title="Clear text"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="secondary" size="sm" onClick={handleCopyText}>
-                          <Copy className="mr-2 h-4 w-4" /> Copy
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          onClick={handleCopyText}
+                          aria-label="Copy text"
+                          title="Copy text"
+                        >
+                          <Copy className="h-4 w-4" />
                         </Button>
                       </>
                     )}
-                    <Button size="sm" onClick={handleSaveText} disabled={saveText.isPending || !textContent.trim()}>
-                      <Save className="mr-2 h-4 w-4" /> {saveText.isPending ? "Saving..." : "Save to Board"}
+                    <Button
+                      size="icon"
+                      onClick={handleSaveText}
+                      disabled={saveText.isPending || !textContent.trim()}
+                      aria-label={saveText.isPending ? "Saving text" : "Save text to board"}
+                      title={saveText.isPending ? "Saving..." : "Save to board"}
+                    >
+                      <Save className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -718,32 +756,41 @@ export function Home() {
                         <div
                           key={file.id}
                           className="group overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/30"
+                          title={`${file.name}\n${file.mimeType}\n${formatFileSize(file.sizeBytes)}`}
                         >
                           <button
                             type="button"
                             onClick={() => void openFilePreviewInNewTab(file)}
-                            className="w-full text-left"
+                            className="relative w-full text-left"
                           >
                             <RemoteFileThumbnail file={file} />
-                            <div className="space-y-2 p-4 pb-3">
-                              <p className="line-clamp-2 min-h-12 text-sm font-medium">{file.name}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>{formatFileSize(file.sizeBytes)}</span>
-                                <span>•</span>
-                                <span className="text-primary">Click to preview</span>
+                            <div className="pointer-events-none absolute inset-x-3 top-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                              <div className="rounded-lg bg-background/85 px-3 py-2 text-xs shadow-lg backdrop-blur">
+                                <p className="truncate font-medium text-foreground">{file.name}</p>
+                                <p className="truncate text-[11px] text-muted-foreground">{file.mimeType}</p>
                               </div>
                             </div>
+                            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-2">
+                              <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+                                {formatFileSize(file.sizeBytes)}
+                              </span>
+                              <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+                                {getFileFormatLabel(file.name, file.mimeType)}
+                              </span>
+                            </div>
                           </button>
-                          <div className="flex items-center justify-end gap-2 border-t px-4 py-3">
+                          <div className="flex items-center justify-start gap-3 border-t px-4 py-3">
                             <DownloadButton fileId={file.id} />
                             <Button
                               variant="secondary"
                               size="icon"
-                              className="h-10 w-10 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              className="h-10 w-10 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteFile(file.id);
                               }}
+                              aria-label="Delete file"
+                              title="Delete file"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
