@@ -276,7 +276,7 @@ export function Home() {
                     </>
                   )}
                   <Button size="sm" onClick={handleSaveText} disabled={saveText.isPending || !textContent.trim()}>
-                    <Save className="h-4 w-4 mr-2" /> {saveText.isPending ? "Saving..." : "Save to Board"}
+                    <Save className="h-4 w-4 mr-2" /> {saveText.isPending ? "Saving..." : "Save"}
                   </Button>
                 </div>
               </div>
