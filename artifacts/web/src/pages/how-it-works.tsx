@@ -22,7 +22,7 @@ export function HowItWorks() {
               <div>
                 <h3 className="text-xl font-semibold mb-2">Same Wi-Fi, same board</h3>
                 <p className="text-muted-foreground">
-                  Just open Hiqain Share on your phone and your laptop while connected to the same network. You'll instantly land on the same shared board.
+                  Just open Air4Share on your phone and your laptop while connected to the same network. You'll instantly land on the same shared board.
                 </p>
               </div>
             </div>
