@@ -647,7 +647,6 @@ export function Home() {
                     Shared Files
                   </CardTitle>
                 </div>
-                <CardDescription>Drag and drop or browse to share (Max {MAX_UPLOAD_SIZE_LABEL})</CardDescription>
               </CardHeader>
               <CardContent className="min-h-[220px] space-y-3 p-4">
                 <div
@@ -673,7 +672,7 @@ export function Home() {
                     multiple
                   />
                   <UploadCloud className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="mb-1 text-sm font-medium">Click to browse or drag files here</p>
+                  <p className="mb-1 text-sm font-medium">Click to browse or drag files here (Max 1GB)</p>
                   <p className="text-xs text-muted-foreground">Available instantly to everyone on your network</p>
                 </div>
 
@@ -726,7 +725,6 @@ export function Home() {
                 {isBoardLoading ? null : board?.files && board.files.length > 0 ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-medium text-muted-foreground">Currently on board</h3>
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
