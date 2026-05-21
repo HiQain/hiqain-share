@@ -84,7 +84,7 @@ export function HowItWorks() {
         <div className="text-center bg-primary text-primary-foreground rounded-2xl p-12">
           <h2 className="text-3xl font-bold mb-4">Ready to clear your tab clutter?</h2>
           <p className="mb-8 text-primary-foreground/80 max-w-lg mx-auto">
-            Stop emailing yourself links and photos. Try Hiqain Share right now.
+            Stop emailing yourself links and photos. Try Air 4 Share right now.
           </p>
           <Link href="/">
             <Button size="lg" variant="secondary" className="rounded-full font-semibold">

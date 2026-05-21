@@ -1,0 +1,12 @@
+apps:
+- name: site92503-u1e8vu.scloudsite101.com
+  log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+  cwd: /home/air4share/hiqain-share/hiqain-share/
+  script: "npm"
+  args: "run start"
+  interpreter: "/usr/bin/node"
+  env:
+    NODE_ENV: "production"
+    PORT: "3101"
+    DATABASE_URL: "mysql://air4share_air4share_my_user:JOhm06FFChRPT@localhost:3306/air4share_db"
+    USE_IN_MEMORY_STORE: "false"

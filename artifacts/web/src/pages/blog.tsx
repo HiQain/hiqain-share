@@ -1,4 +1,5 @@
 import { useListBlogs } from "@workspace/api-client-react";
+import { Link } from "wouter";
 import type { BlogPost } from "@/lib/blog-store";
 
 function formatBlogDate(publishedAt: string): string {
@@ -39,7 +40,9 @@ export function Blog() {
               <p className="mb-3 text-sm text-muted-foreground">{formatBlogDate(post.publishedAt)}</p>
               <h2 className="mb-3 text-2xl font-semibold">{post.title}</h2>
               <p className="text-muted-foreground">{post.excerpt}</p>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground">{post.content}</p>
+              <Link href={`/blog/${post.id}`} className="mt-5 inline-flex text-sm font-medium text-primary hover:underline">
+                Read full article
+              </Link>
             </article>
           ))}
         </div>

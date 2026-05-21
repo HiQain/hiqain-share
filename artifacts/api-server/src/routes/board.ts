@@ -26,6 +26,9 @@ import { memoryStore } from "../lib/memory-store";
 
 const router: IRouter = Router();
 const useMemoryStore = process.env["USE_IN_MEMORY_STORE"] === "true";
+const ZIP_LOCAL_FILE_HEADER = 0x04034b50;
+const ZIP_CENTRAL_DIRECTORY_HEADER = 0x02014b50;
+const ZIP_END_OF_CENTRAL_DIRECTORY_HEADER = 0x06054b50;
 
 async function ensureRoom(roomId: string): Promise<void> {
   await db
@@ -39,6 +42,101 @@ function fmtBytes(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function sanitizeArchiveEntryName(name: string, usedNames: Set<string>): string {
+  const trimmed = name.trim() || "file";
+  const normalized = trimmed.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ");
+  const dotIndex = normalized.lastIndexOf(".");
+  const hasExtension = dotIndex > 0 && dotIndex < normalized.length - 1;
+  const base = hasExtension ? normalized.slice(0, dotIndex) : normalized;
+  const extension = hasExtension ? normalized.slice(dotIndex) : "";
+  let candidate = normalized;
+  let counter = 1;
+
+  while (usedNames.has(candidate)) {
+    counter += 1;
+    candidate = `${base} (${counter})${extension}`;
+  }
+
+  usedNames.add(candidate);
+  return candidate;
+}
+
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i++) {
+      const mask = -(crc & 1);
+      crc = (crc >>> 1) ^ (0xedb88320 & mask);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createZipArchive(files: Array<{ name: string; dataBase64: string }>): Buffer {
+  const localFileParts: Buffer[] = [];
+  const centralDirectoryParts: Buffer[] = [];
+  const usedNames = new Set<string>();
+  let offset = 0;
+
+  for (const file of files) {
+    const entryName = sanitizeArchiveEntryName(file.name, usedNames);
+    const fileNameBuffer = Buffer.from(entryName, "utf8");
+    const fileData = Buffer.from(file.dataBase64, "base64");
+    const crc = crc32(fileData);
+
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(ZIP_LOCAL_FILE_HEADER, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0, 6);
+    localHeader.writeUInt16LE(0, 8);
+    localHeader.writeUInt16LE(0, 10);
+    localHeader.writeUInt16LE(0, 12);
+    localHeader.writeUInt32LE(crc, 14);
+    localHeader.writeUInt32LE(fileData.length, 18);
+    localHeader.writeUInt32LE(fileData.length, 22);
+    localHeader.writeUInt16LE(fileNameBuffer.length, 26);
+    localHeader.writeUInt16LE(0, 28);
+
+    localFileParts.push(localHeader, fileNameBuffer, fileData);
+
+    const centralDirectoryHeader = Buffer.alloc(46);
+    centralDirectoryHeader.writeUInt32LE(ZIP_CENTRAL_DIRECTORY_HEADER, 0);
+    centralDirectoryHeader.writeUInt16LE(20, 4);
+    centralDirectoryHeader.writeUInt16LE(20, 6);
+    centralDirectoryHeader.writeUInt16LE(0, 8);
+    centralDirectoryHeader.writeUInt16LE(0, 10);
+    centralDirectoryHeader.writeUInt16LE(0, 12);
+    centralDirectoryHeader.writeUInt16LE(0, 14);
+    centralDirectoryHeader.writeUInt32LE(crc, 16);
+    centralDirectoryHeader.writeUInt32LE(fileData.length, 20);
+    centralDirectoryHeader.writeUInt32LE(fileData.length, 24);
+    centralDirectoryHeader.writeUInt16LE(fileNameBuffer.length, 28);
+    centralDirectoryHeader.writeUInt16LE(0, 30);
+    centralDirectoryHeader.writeUInt16LE(0, 32);
+    centralDirectoryHeader.writeUInt16LE(0, 34);
+    centralDirectoryHeader.writeUInt16LE(0, 36);
+    centralDirectoryHeader.writeUInt32LE(0, 38);
+    centralDirectoryHeader.writeUInt32LE(offset, 42);
+
+    centralDirectoryParts.push(centralDirectoryHeader, fileNameBuffer);
+    offset += localHeader.length + fileNameBuffer.length + fileData.length;
+  }
+
+  const centralDirectory = Buffer.concat(centralDirectoryParts);
+  const endOfCentralDirectory = Buffer.alloc(22);
+  endOfCentralDirectory.writeUInt32LE(ZIP_END_OF_CENTRAL_DIRECTORY_HEADER, 0);
+  endOfCentralDirectory.writeUInt16LE(0, 4);
+  endOfCentralDirectory.writeUInt16LE(0, 6);
+  endOfCentralDirectory.writeUInt16LE(files.length, 8);
+  endOfCentralDirectory.writeUInt16LE(files.length, 10);
+  endOfCentralDirectory.writeUInt32LE(centralDirectory.length, 12);
+  endOfCentralDirectory.writeUInt32LE(offset, 16);
+  endOfCentralDirectory.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localFileParts, centralDirectory, endOfCentralDirectory]);
 }
 
 router.get("/board", async (req, res) => {
@@ -418,6 +516,36 @@ router.get("/files/:fileId/download", async (req, res) => {
     dataBase64: row.dataBase64,
   });
   res.json(data);
+});
+
+router.get("/files/download-all", async (req, res) => {
+  const roomId = getRoomId(req);
+  const now = new Date();
+  const rows = useMemoryStore
+    ? memoryStore.listFiles(roomId)
+    : await db
+        .select()
+        .from(filesTable)
+        .where(and(eq(filesTable.roomId, roomId), gt(filesTable.expiresAt, now)))
+        .orderBy(desc(filesTable.createdAt));
+
+  if (rows.length === 0) {
+    res.status(404).json({ error: "No files found" });
+    return;
+  }
+
+  const zipBuffer = createZipArchive(
+    rows.map((row) => ({
+      name: row.name,
+      dataBase64: row.dataBase64,
+    })),
+  );
+  const archiveName = `air4share-board-${roomId}.zip`;
+
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="${archiveName}"`);
+  res.setHeader("Content-Length", zipBuffer.length.toString());
+  res.send(zipBuffer);
 });
 
 router.get("/devices", async (req, res) => {
