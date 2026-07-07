@@ -538,51 +538,53 @@ export function Home() {
   };
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-8">
-        <h1 className="mb-2 text-4xl font-bold tracking-tight">Your Network Board</h1>
-        <p className="text-lg text-muted-foreground">
+    <div className="container mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="mb-2 max-w-[12ch] text-4xl font-bold leading-tight tracking-tight sm:max-w-none sm:text-5xl">
+          Your Network Board
+        </h1>
+        <p className="max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
           Anyone on your current Wi-Fi network can see this board. Things disappear after 30 minutes.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-[200px_1fr]">
-        <div className="flex gap-2 md:flex-col">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+        <div className="grid grid-cols-2 gap-2 md:flex md:flex-col">
           <button
             onClick={() => setActiveTab("text")}
-            className={`flex min-h-14 flex-1 items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors md:flex-none ${
+            className={`flex min-h-14 items-center justify-center gap-3 rounded-lg px-4 py-3 text-center text-sm font-medium transition-colors md:justify-start md:text-left ${
               activeTab === "text"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "border border-border bg-card text-foreground hover:bg-muted"
             }`}
           >
             <Type className="h-4 w-4 shrink-0" />
-            Shared Text
+            Text
           </button>
           <button
             onClick={() => setActiveTab("files")}
-            className={`flex min-h-14 flex-1 items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors md:flex-none ${
+            className={`flex min-h-14 items-center justify-center gap-3 rounded-lg px-4 py-3 text-center text-sm font-medium transition-colors md:justify-start md:text-left ${
               activeTab === "files"
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "border border-border bg-card text-foreground hover:bg-muted"
             }`}
           >
             <UploadCloud className="h-4 w-4 shrink-0" />
-            Shared Files
+            Files
           </button>
         </div>
 
         <div>
           {activeTab === "text" && (
             <Card className="overflow-hidden border-primary/20 shadow-sm">
-              <CardHeader className="bg-muted/50 pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+              <CardHeader className="bg-muted/50 px-4 pb-4 sm:px-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <FileIcon className="h-5 w-5 text-primary" />
-                    Shared Text
+                    Text
                   </CardTitle>
                   {board?.text && (
-                    <Badge variant="outline" className="flex items-center gap-1 text-xs font-normal">
+                    <Badge variant="outline" className="flex w-fit items-center gap-1 text-xs font-normal">
                       <Clock className="h-3 w-3" />
                       Expires in {board.expiresInMinutes}m
                     </Badge>
@@ -590,16 +592,16 @@ export function Home() {
                 </div>
               </CardHeader>
               <CardContent className="flex min-h-[260px] flex-col p-0">
-                <div className="flex-1 p-4">
+                <div className="flex-1 p-4 sm:p-6">
                   <Textarea
                     placeholder="Paste snippet, link, or text here..."
-                    className="min-h-[150px] resize-none border-none text-base shadow-none focus-visible:ring-0"
+                    className="min-h-[180px] resize-none border-none px-0 text-base shadow-none focus-visible:ring-0 sm:min-h-[220px]"
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
                   />
                 </div>
-                <div className="flex items-center justify-end border-t bg-muted/30 px-4 py-3">
-                  <div className="flex gap-2">
+                <div className="border-t bg-muted/30 px-4 py-3 sm:px-6">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     {board?.text && (
                       <>
                         <Button
@@ -640,17 +642,17 @@ export function Home() {
 
           {activeTab === "files" && (
             <Card className="overflow-hidden border-primary/20 shadow-sm">
-              <CardHeader className="bg-muted/50 pb-4">
+              <CardHeader className="bg-muted/50 px-4 pb-4 sm:px-6">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
                     <UploadCloud className="h-5 w-5 text-primary" />
-                    Shared Files
+                    Files
                   </CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="min-h-[220px] space-y-3 p-4">
+              <CardContent className="min-h-[220px] space-y-3 p-4 sm:p-6">
                 <div
-                  className={`rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
+                  className={`rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors sm:px-6 sm:py-12 ${
                     isDragging ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
                   }`}
                   onDragOver={(e) => {
@@ -683,10 +685,15 @@ export function Home() {
                         Uploading {uploadQueue.length} file{uploadQueue.length > 1 ? "s" : ""}
                       </p>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
                       {uploadQueue.map((item) => (
-                        <div key={item.id} className="flex items-center gap-4 rounded-xl border bg-background/80 p-3">
-                          <UploadCircle progress={item.progress} />
+                        <div
+                          key={item.id}
+                          className="flex flex-col gap-4 rounded-xl border bg-background/80 p-3 sm:flex-row sm:items-center"
+                        >
+                          <div className="flex justify-center sm:block">
+                            <UploadCircle progress={item.progress} />
+                          </div>
                           <div className="min-w-0 flex-1">
                             <div className="mb-2 flex items-start gap-3">
                               <div className="shrink-0">
@@ -725,13 +732,13 @@ export function Home() {
                 {isBoardLoading ? null : board?.files && board.files.length > 0 ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={handleDeleteAll}
                           disabled={isDeletingAll}
-                          className="h-10"
+                          className="h-10 w-full sm:w-auto"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           {isDeletingAll ? "Deleting..." : "Delete all"}
@@ -741,7 +748,7 @@ export function Home() {
                           size="sm"
                           onClick={handleDownloadAll}
                           disabled={isDownloadingAll}
-                          className="h-10"
+                          className="h-10 w-full sm:w-auto"
                         >
                           <Download className="mr-2 h-4 w-4" />
                           {isDownloadingAll ? "Preparing zip..." : "Download all"}
@@ -762,13 +769,13 @@ export function Home() {
                             className="relative w-full text-left"
                           >
                             <RemoteFileThumbnail file={file} />
-                            <div className="pointer-events-none absolute inset-x-3 top-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                            <div className="pointer-events-none absolute inset-x-3 top-3 hidden opacity-0 transition-opacity duration-200 group-hover:opacity-100 md:block">
                               <div className="rounded-lg bg-background/85 px-3 py-2 text-xs shadow-lg backdrop-blur">
                                 <p className="truncate font-medium text-foreground">{file.name}</p>
                                 <p className="truncate text-[11px] text-muted-foreground">{file.mimeType}</p>
                               </div>
                             </div>
-                            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-2">
+                            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-center gap-2">
                               <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
                                 {formatFileSize(file.sizeBytes)}
                               </span>
@@ -777,7 +784,7 @@ export function Home() {
                               </span>
                             </div>
                           </button>
-                          <div className="flex items-center justify-start gap-3 border-t px-4 py-3">
+                          <div className="flex items-center justify-end gap-3 border-t px-4 py-3">
                             <DownloadButton fileId={file.id} />
                             <Button
                               variant="secondary"

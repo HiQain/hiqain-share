@@ -34,7 +34,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-16 h-16 flex items-center justify-between">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-16">
           <Link href="/" className="flex items-center gap-2 group">
             <div className="text-primary-foreground rounded-md group-hover:scale-105 transition-transform">
               <img src="/share_logo.png" alt="Hiqain Share Logo" width={80} height={80} />
@@ -75,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Mobile Nav */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-border bg-background animate-in slide-in-from-top-4">
-            <nav className="flex flex-col p-4 gap-4">
+            <nav className="flex flex-col gap-4 px-4 py-4 sm:px-6">
               <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
                 <span className="text-sm font-medium text-foreground">Dark mode</span>
                 <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Moon className="h-4 w-4 text-muted-foreground" />
                 </div>
               </div>
-              <div className="px-2">
+              <div>
                 <LanguageSelector className="h-10 w-full bg-background" />
               </div>
               {navLinks.map((link) => (
