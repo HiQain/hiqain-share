@@ -543,7 +543,7 @@ export function Home() {
         <h1 className="mb-2 max-w-[12ch] text-4xl font-bold leading-tight tracking-tight sm:max-w-none sm:text-5xl">
           Your Network Board
         </h1>
-        <p className="max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
+        <p className="max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg">
           Anyone on your current Wi-Fi network can see this board. Things disappear after 30 minutes.
         </p>
       </div>
