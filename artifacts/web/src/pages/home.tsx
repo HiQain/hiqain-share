@@ -9,33 +9,44 @@ import {
   getListFilesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
-  FileIcon,
-  Trash2,
-  Download,
+  AlertTriangle,
+  Clock3,
   Copy,
-  Save,
-  Clock,
-  UploadCloud,
-  Type,
-  Image as ImageIcon,
-  Loader2,
+  Download,
+  FileArchive,
+  FileAudio,
+  FileIcon,
   FileText,
   FileVideo,
-  FileAudio,
-  FileArchive,
+  Image as ImageIcon,
+  Loader2,
+  Lock,
+  Monitor,
+  RefreshCw,
+  Save,
+  Trash2,
+  Type,
+  UploadCloud,
+  Users,
+  Wifi,
+  X,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 const POLL_INTERVAL = 3000;
+const SCREEN_STATUS_POLL_MS = 2000;
+const SCREEN_CAPTURE_INTERVAL_MS = 1200;
 const MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = "1GB";
 const READ_PROGRESS_SHARE = 0.15;
+const MAX_CAPTURE_WIDTH = 1280;
+const JPEG_QUALITY = 0.6;
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type BoardFileItem = {
@@ -56,21 +67,45 @@ type UploadQueueItem = {
   previewUrl: string | null;
 };
 
+type ScreenParticipant = {
+  deviceId: string;
+  label: string;
+  role: "host" | "viewer";
+  isCurrent: boolean;
+  lastSeen: string;
+};
+
+type ScreenRoomStatus = {
+  code: string;
+  role: "host" | "viewer";
+  hostLabel: string;
+  isHostPresent: boolean;
+  isSharing: boolean;
+  frameSequence: number;
+  frameCapturedAt: string | null;
+  viewerCount: number;
+  participantCount: number;
+  participants: ScreenParticipant[];
+  createdAt: string;
+};
+
+type ScreenFrame = {
+  imageDataUrl: string;
+  width: number;
+  height: number;
+  sequence: number;
+  capturedAt: string;
+};
+
+type ScreenFrameResponse = {
+  code: string;
+  frame: ScreenFrame | null;
+};
+
 const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
 const isVideoMime = (mime: string) => mime.toLowerCase().startsWith("video/");
 const isAudioMime = (mime: string) => mime.toLowerCase().startsWith("audio/");
 const isPdfMime = (mime: string) => mime.toLowerCase() === "application/pdf";
-const isTextLikeMime = (mime: string) => {
-  const normalized = mime.toLowerCase();
-  return (
-    normalized.startsWith("text/") ||
-    normalized === "application/json" ||
-    normalized === "application/xml" ||
-    normalized.endsWith("+json") ||
-    normalized.endsWith("+xml") ||
-    normalized.includes("javascript")
-  );
-};
 
 function base64ToBlob(dataBase64: string, mimeType: string): Blob {
   const byteCharacters = atob(dataBase64);
@@ -197,13 +232,34 @@ async function uploadFileWithProgress(
   });
 }
 
+async function apiRequest<T>(input: string, init?: RequestInit, expectJson = true): Promise<T> {
+  const response = await fetch(input, init);
+  const text = await response.text();
+  const data = text ? (JSON.parse(text) as { error?: string }) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.error ?? `Request failed with status ${response.status}.`);
+  }
+
+  return (expectJson ? (data as T) : (undefined as T));
+}
+
+function formatBoardCountdown(minutes: number) {
+  const safeMinutes = Math.max(0, minutes);
+  return `${String(safeMinutes).padStart(2, "0")}:00`;
+}
+
+function copyTextToClipboard(value: string) {
+  return navigator.clipboard.writeText(value);
+}
+
 function DownloadButton({ fileId }: { fileId: string }) {
   const { refetch, isFetching } = useDownloadFile(fileId, {
     query: { queryKey: getDownloadFileQueryKey(fileId), enabled: false },
   });
 
-  const onDownload = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const onDownload = async (event: React.MouseEvent) => {
+    event.stopPropagation();
     const { data } = await refetch();
     if (data?.dataBase64) {
       triggerBrowserDownload(base64ToBlob(data.dataBase64, data.mimeType), data.name);
@@ -328,8 +384,7 @@ function RemoteFileThumbnail({ file }: { file: BoardFileItem }) {
 export function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const { data: board, isLoading: isBoardLoading } = useGetBoard({
+  const { data: board, isLoading: isBoardLoading, refetch: refetchBoard } = useGetBoard({
     query: { queryKey: getGetBoardQueryKey(), refetchInterval: POLL_INTERVAL },
   });
 
@@ -337,13 +392,28 @@ export function Home() {
   const clearText = useClearText();
   const deleteFile = useDeleteFile();
 
+  const [activeView, setActiveView] = useState<"board" | "screen">("board");
+  const [boardTab, setBoardTab] = useState<"text" | "files">("text");
   const [textContent, setTextContent] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  const [activeTab, setActiveTab] = useState<"text" | "files">("text");
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+  const [roomCodeInput, setRoomCodeInput] = useState("");
+  const [screenRoom, setScreenRoom] = useState<ScreenRoomStatus | null>(null);
+  const [latestFrame, setLatestFrame] = useState<ScreenFrame | null>(null);
+  const [screenMessage, setScreenMessage] = useState<string | null>(null);
+  const [isScreenActionPending, setIsScreenActionPending] = useState(false);
+  const [isStartingShare, setIsStartingShare] = useState(false);
+  const [isStoppingShare, setIsStoppingShare] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const latestFrameSequenceRef = useRef(0);
+  const captureVideoRef = useRef<HTMLVideoElement | null>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const captureStreamRef = useRef<MediaStream | null>(null);
+  const captureIntervalRef = useRef<number | null>(null);
+  const localFrameSequenceRef = useRef(0);
 
   useEffect(() => {
     if (board?.text && !document.activeElement?.matches("textarea")) {
@@ -352,6 +422,21 @@ export function Home() {
       setTextContent("");
     }
   }, [board?.text]);
+
+  useEffect(() => {
+    latestFrameSequenceRef.current = latestFrame?.sequence ?? 0;
+  }, [latestFrame]);
+
+  useEffect(() => {
+    return () => {
+      if (captureIntervalRef.current !== null) {
+        window.clearInterval(captureIntervalRef.current);
+      }
+      if (captureStreamRef.current) {
+        captureStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
 
   const updateUploadItem = (id: string, updater: (item: UploadQueueItem) => UploadQueueItem) => {
     setUploadQueue((current) => current.map((item) => (item.id === id ? updater(item) : item)));
@@ -366,6 +451,62 @@ export function Home() {
       return current.filter((item) => item.id !== id);
     });
   };
+
+  const stopLocalCapture = () => {
+    if (captureIntervalRef.current !== null) {
+      window.clearInterval(captureIntervalRef.current);
+      captureIntervalRef.current = null;
+    }
+    if (captureStreamRef.current) {
+      captureStreamRef.current.getTracks().forEach((track) => track.stop());
+      captureStreamRef.current = null;
+    }
+    if (captureVideoRef.current) {
+      captureVideoRef.current.srcObject = null;
+    }
+  };
+
+  const refreshScreenRoom = async (codeOverride?: string) => {
+    const code = codeOverride ?? screenRoom?.code;
+    if (!code) {
+      return;
+    }
+
+    try {
+      const nextRoom = await apiRequest<ScreenRoomStatus>(`/api/screen-share/rooms/${code}/status`);
+      setScreenRoom(nextRoom);
+
+      if (!nextRoom.isSharing) {
+        setLatestFrame(null);
+        latestFrameSequenceRef.current = 0;
+        return;
+      }
+
+      if (nextRoom.frameSequence !== latestFrameSequenceRef.current) {
+        const frameResponse = await apiRequest<ScreenFrameResponse>(`/api/screen-share/rooms/${code}/frame`);
+        setLatestFrame(frameResponse.frame);
+      }
+    } catch (error) {
+      stopLocalCapture();
+      setScreenRoom(null);
+      setLatestFrame(null);
+      setScreenMessage(error instanceof Error ? error.message : "Screen room is no longer available.");
+    }
+  };
+
+  useEffect(() => {
+    if (!screenRoom?.code) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshScreenRoom(screenRoom.code);
+    }, SCREEN_STATUS_POLL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [screenRoom?.code]);
 
   const handleSaveText = () => {
     if (!textContent.trim()) return;
@@ -392,16 +533,16 @@ export function Home() {
 
   const handleCopyText = () => {
     if (board?.text?.content) {
-      navigator.clipboard.writeText(board.text.content);
+      void copyTextToClipboard(board.text.content);
       toast({ title: "Copied to local clipboard" });
     }
   };
 
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleFileDrop = (event: React.DragEvent) => {
+    event.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      void handleFiles(Array.from(e.dataTransfer.files));
+    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+      void handleFiles(Array.from(event.dataTransfer.files));
     }
   };
 
@@ -537,278 +678,698 @@ export function Home() {
     }
   };
 
-  return (
-    <div className="container mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="mb-2 max-w-[12ch] text-4xl font-bold leading-tight tracking-tight sm:max-w-none sm:text-5xl">
-          Your Network Board
-        </h1>
-        <p className="max-w-4xl text-base leading-8 text-muted-foreground sm:text-lg">
-          Anyone on your current Wi-Fi network can see this board. Things disappear after 30 minutes.
-        </p>
-      </div>
+  const handleCreateRoom = async () => {
+    try {
+      setIsScreenActionPending(true);
+      setScreenMessage(null);
+      const room = await apiRequest<ScreenRoomStatus>("/api/screen-share/rooms", {
+        method: "POST",
+      });
+      setScreenRoom(room);
+      setRoomCodeInput(room.code);
+      setLatestFrame(null);
+      localFrameSequenceRef.current = 0;
+      toast({ title: "Room created", description: `Room code: ${room.code}` });
+    } catch (error) {
+      setScreenMessage(error instanceof Error ? error.message : "Could not create room.");
+    } finally {
+      setIsScreenActionPending(false);
+    }
+  };
 
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
-        <div className="grid grid-cols-2 gap-2 md:flex md:flex-col">
-          <button
-            onClick={() => setActiveTab("text")}
-            className={`flex min-h-14 items-center justify-center gap-3 rounded-lg px-4 py-3 text-center text-sm font-medium transition-colors md:justify-start md:text-left ${
-              activeTab === "text"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "border border-border bg-card text-foreground hover:bg-muted"
-            }`}
-          >
-            <Type className="h-4 w-4 shrink-0" />
-            Text
-          </button>
-          <button
-            onClick={() => setActiveTab("files")}
-            className={`flex min-h-14 items-center justify-center gap-3 rounded-lg px-4 py-3 text-center text-sm font-medium transition-colors md:justify-start md:text-left ${
-              activeTab === "files"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "border border-border bg-card text-foreground hover:bg-muted"
-            }`}
-          >
-            <UploadCloud className="h-4 w-4 shrink-0" />
-            Files
-          </button>
+  const handleJoinRoom = async () => {
+    const code = roomCodeInput.trim().toUpperCase();
+    if (!code) {
+      setScreenMessage("Enter a room code first.");
+      return;
+    }
+
+    try {
+      setIsScreenActionPending(true);
+      setScreenMessage(null);
+      const room = await apiRequest<ScreenRoomStatus>("/api/screen-share/rooms/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      setScreenRoom(room);
+      setRoomCodeInput(room.code);
+      await refreshScreenRoom(room.code);
+      toast({ title: "Joined room", description: `Connected to ${room.code}` });
+    } catch (error) {
+      setScreenMessage(error instanceof Error ? error.message : "Could not join room.");
+    } finally {
+      setIsScreenActionPending(false);
+    }
+  };
+
+  const handleLeaveRoom = async () => {
+    if (!screenRoom) {
+      return;
+    }
+
+    try {
+      setIsScreenActionPending(true);
+      stopLocalCapture();
+      await apiRequest(`/api/screen-share/rooms/${screenRoom.code}/leave`, { method: "POST" }, false);
+      setScreenRoom(null);
+      setLatestFrame(null);
+      localFrameSequenceRef.current = 0;
+      setScreenMessage("You left the room.");
+    } catch (error) {
+      setScreenMessage(error instanceof Error ? error.message : "Could not leave the room.");
+    } finally {
+      setIsScreenActionPending(false);
+    }
+  };
+
+  const handleCloseRoom = async () => {
+    if (!screenRoom) {
+      return;
+    }
+
+    try {
+      setIsScreenActionPending(true);
+      stopLocalCapture();
+      await apiRequest(`/api/screen-share/rooms/${screenRoom.code}/close`, { method: "POST" }, false);
+      setScreenRoom(null);
+      setLatestFrame(null);
+      localFrameSequenceRef.current = 0;
+      setScreenMessage("Room closed.");
+      toast({ title: "Room closed" });
+    } catch (error) {
+      setScreenMessage(error instanceof Error ? error.message : "Could not close the room.");
+    } finally {
+      setIsScreenActionPending(false);
+    }
+  };
+
+  const handleStopSharing = async () => {
+    if (!screenRoom || screenRoom.role !== "host") {
+      return;
+    }
+
+    try {
+      setIsStoppingShare(true);
+      stopLocalCapture();
+      await apiRequest(`/api/screen-share/rooms/${screenRoom.code}/stop`, { method: "POST" }, false);
+      setLatestFrame(null);
+      await refreshScreenRoom(screenRoom.code);
+    } catch (error) {
+      setScreenMessage(error instanceof Error ? error.message : "Could not stop screen sharing.");
+    } finally {
+      setIsStoppingShare(false);
+    }
+  };
+
+  const pushCurrentFrame = async (code: string) => {
+    const video = captureVideoRef.current;
+    const canvas = captureCanvasRef.current;
+
+    if (!video || !canvas || video.readyState < 2) {
+      return;
+    }
+
+    const sourceWidth = video.videoWidth || 1280;
+    const sourceHeight = video.videoHeight || 720;
+    const scale = Math.min(1, MAX_CAPTURE_WIDTH / sourceWidth);
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return;
+    }
+
+    context.drawImage(video, 0, 0, width, height);
+    const imageDataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+
+    await apiRequest(`/api/screen-share/rooms/${code}/frame`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageDataUrl, width, height }),
+    }, false);
+
+    localFrameSequenceRef.current += 1;
+    const capturedAt = new Date().toISOString();
+
+    setLatestFrame({
+      imageDataUrl,
+      width,
+      height,
+      sequence: localFrameSequenceRef.current,
+      capturedAt,
+    });
+
+    setScreenRoom((current) =>
+      current
+        ? {
+          ...current,
+          isSharing: true,
+          frameSequence: localFrameSequenceRef.current,
+          frameCapturedAt: capturedAt,
+        }
+        : current,
+    );
+  };
+
+  const handleStartSharing = async () => {
+    if (!screenRoom || screenRoom.role !== "host") {
+      return;
+    }
+
+    try {
+      setIsStartingShare(true);
+      setScreenMessage(null);
+
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 1 },
+        audio: false,
+      });
+
+      stopLocalCapture();
+      captureStreamRef.current = stream;
+
+      const video = captureVideoRef.current;
+      if (!video) {
+        throw new Error("Screen preview could not be initialized.");
+      }
+
+      video.srcObject = stream;
+      await video.play();
+
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        track.addEventListener("ended", () => {
+          void handleStopSharing();
+        });
+      }
+
+      localFrameSequenceRef.current = 0;
+      await pushCurrentFrame(screenRoom.code);
+
+      captureIntervalRef.current = window.setInterval(() => {
+        void pushCurrentFrame(screenRoom.code);
+      }, SCREEN_CAPTURE_INTERVAL_MS);
+
+      toast({ title: "Screen sharing started" });
+    } catch (error) {
+      stopLocalCapture();
+      setScreenMessage(
+        error instanceof Error ? error.message : "Screen sharing could not be started on this device.",
+      );
+    } finally {
+      setIsStartingShare(false);
+    }
+  };
+
+  const isSharingLocally = captureStreamRef.current !== null && captureIntervalRef.current !== null;
+
+  const networkBanner = (
+    <div className="rounded-[1rem] border border-border bg-muted/60 px-4 py-3 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 rounded-full bg-background p-2 text-foreground">
+          <AlertTriangle className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-base font-semibold tracking-tight text-foreground">Network Mode Active</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            Anyone on the same network may see this content. Use Private Room mode for sensitive data.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-full bg-background">
+      <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="inline-flex w-full max-w-[440px] rounded-full border border-border bg-card p-0.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setActiveView("board")}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-0 py-2 text-sm font-medium transition ${activeView === "board"
+                ? "bg-background text-foreground shadow-sm ring-2 ring-primary"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Wifi className="h-4 w-4" />
+              Network Board
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView("screen")}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-0 py-2 text-sm font-medium transition ${activeView === "screen"
+                ? "bg-background text-foreground shadow-sm ring-2 ring-primary"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Lock className="h-4 w-4" />
+              Screen Share
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4 self-end lg:self-auto">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-2 text-base font-medium text-foreground">
+              <Clock3 className="h-4 w-4" />
+              Board clears in {formatBoardCountdown(board?.expiresInMinutes ?? 30)}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void refetchBoard();
+                if (screenRoom?.code) {
+                  void refreshScreenRoom(screenRoom.code);
+                }
+              }}
+              className="rounded-full p-2.5 text-foreground transition hover:bg-muted"
+              aria-label="Refresh content"
+              title="Refresh"
+            >
+              <RefreshCw className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        <div>
-          {activeTab === "text" && (
+        {activeView === "board" && (
+          <>
+            {networkBanner}
+
             <Card className="overflow-hidden border-primary/20 shadow-sm">
-              <CardHeader className="bg-muted/50 px-4 pb-4 sm:px-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <FileIcon className="h-5 w-5 text-primary" />
-                    Text
-                  </CardTitle>
-                  {board?.text && (
-                    <Badge variant="outline" className="flex w-fit items-center gap-1 text-xs font-normal">
-                      <Clock className="h-3 w-3" />
-                      Expires in {board.expiresInMinutes}m
-                    </Badge>
-                  )}
+              <CardHeader className="border-b px-4 py-0 sm:px-6">
+                <div className="flex items-center gap-8 overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => setBoardTab("text")}
+                    className={`border-b-4 px-1 py-5 text-base font-medium transition ${boardTab === "text"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Type className="h-4 w-4" />
+                      Text / Links
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBoardTab("files")}
+                    className={`border-b-4 px-1 py-5 text-base font-medium transition ${boardTab === "files"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <UploadCloud className="h-4 w-4" />
+                      Files
+                    </span>
+                  </button>
                 </div>
               </CardHeader>
-              <CardContent className="flex min-h-[260px] flex-col p-0">
-                <div className="flex-1 p-4 sm:p-6">
-                  <Textarea
-                    placeholder="Paste snippet, link, or text here..."
-                    className="min-h-[180px] resize-none border-none px-0 text-base shadow-none focus-visible:ring-0 sm:min-h-[220px]"
-                    value={textContent}
-                    onChange={(e) => setTextContent(e.target.value)}
-                  />
-                </div>
-                <div className="border-t bg-muted/30 px-4 py-3 sm:px-6">
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {board?.text && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={handleClearText}
-                          disabled={clearText.isPending}
-                          aria-label="Clear text"
-                          title="Clear text"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          onClick={handleCopyText}
-                          aria-label="Copy text"
-                          title="Copy text"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      size="icon"
-                      onClick={handleSaveText}
-                      disabled={saveText.isPending || !textContent.trim()}
-                      aria-label={saveText.isPending ? "Saving text" : "Save text to board"}
-                      title={saveText.isPending ? "Saving..." : "Save to board"}
-                    >
-                      <Save className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
-          {activeTab === "files" && (
-            <Card className="overflow-hidden border-primary/20 shadow-sm">
-              <CardHeader className="bg-muted/50 px-4 pb-4 sm:px-6">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <UploadCloud className="h-5 w-5 text-primary" />
-                    Files
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="min-h-[220px] space-y-3 p-4 sm:p-6">
-                <div
-                  className={`rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors sm:px-6 sm:py-12 ${
-                    isDragging ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                  }`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragging(true);
-                  }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={handleFileDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files) void handleFiles(Array.from(e.target.files));
-                      e.target.value = "";
-                    }}
-                    multiple
-                  />
-                  <UploadCloud className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                  <p className="mb-1 text-sm font-medium">Click to browse or drag files here (Max 1GB)</p>
-                  <p className="text-xs text-muted-foreground">Available instantly to everyone on your network</p>
-                </div>
-
-                {uploadQueue.length > 0 && (
-                  <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium">
-                        Uploading {uploadQueue.length} file{uploadQueue.length > 1 ? "s" : ""}
-                      </p>
+              <CardContent className="space-y-6 p-4 sm:p-6">
+                {boardTab === "text" && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border bg-background p-3 sm:p-4">
+                      <Textarea
+                        placeholder="Paste snippet, link, or text here..."
+                        className="min-h-[170px] resize-none border-none bg-transparent px-0 text-base text-foreground shadow-none focus-visible:ring-0 sm:min-h-[190px]"
+                        value={textContent}
+                        onChange={(event) => setTextContent(event.target.value)}
+                      />
                     </div>
-                    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-                      {uploadQueue.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex flex-col gap-4 rounded-xl border bg-background/80 p-3 sm:flex-row sm:items-center"
-                        >
-                          <div className="flex justify-center sm:block">
-                            <UploadCircle progress={item.progress} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="mb-2 flex items-start gap-3">
-                              <div className="shrink-0">
-                                <FileThumb
-                                  mimeType={item.mimeType}
-                                  fileName={item.fileName}
-                                  previewUrl={item.previewUrl}
-                                  compact
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-medium">{item.fileName}</p>
-                                <p className="text-xs text-muted-foreground">{formatFileSize(item.sizeBytes)}</p>
-                              </div>
-                            </div>
-                            <div className="h-1.5 overflow-hidden rounded-full bg-border/60">
-                              <div
-                                className="h-full rounded-full bg-primary transition-[width] duration-200"
-                                style={{ width: `${item.progress}%` }}
-                              />
-                            </div>
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              {item.status === "reading"
-                                ? "Preparing file..."
-                                : item.status === "uploading"
-                                  ? "Uploading..."
-                                  : "Finalizing..."}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button onClick={handleSaveText} disabled={saveText.isPending || !textContent.trim()}>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save
+                      </Button>
+                      {board?.text && (
+                        <>
+                          <Button variant="secondary" onClick={handleCopyText}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy
+                          </Button>
+                          <Button variant="ghost" onClick={handleClearText} disabled={clearText.isPending}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Clear
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {isBoardLoading ? null : board?.files && board.files.length > 0 ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleDeleteAll}
-                          disabled={isDeletingAll}
-                          className="h-10 w-full sm:w-auto"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {isDeletingAll ? "Deleting..." : "Delete all"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleDownloadAll}
-                          disabled={isDownloadingAll}
-                          className="h-10 w-full sm:w-auto"
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          {isDownloadingAll ? "Preparing zip..." : "Download all"}
-                        </Button>
+                {boardTab === "files" && (
+                  <div className="space-y-6">
+                    <div
+                      className={`rounded-xl border-2 border-dashed px-4 py-7 text-center transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                        }`}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={handleFileDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={(event) => {
+                          if (event.target.files) void handleFiles(Array.from(event.target.files));
+                          event.target.value = "";
+                        }}
+                        multiple
+                      />
+                      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-muted-foreground">
+                        <UploadCloud className="h-6 w-6" />
+                      </div>
+                      <p className="text-xl font-semibold text-foreground">Drag &amp; drop files here</p>
+                      <p className="mt-1.5 text-base text-muted-foreground">or click to browse</p>
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 text-sm text-muted-foreground">
+                        <span className="rounded-full bg-muted px-3.5 py-1.5">Max {MAX_UPLOAD_SIZE_LABEL} per file</span>
+                        <span className="rounded-full bg-muted px-3.5 py-1.5">Same network only</span>
                       </div>
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                      {board.files.map((file: BoardFileItem) => (
-                        <div
-                          key={file.id}
-                          className="group overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/30"
-                          title={`${file.name}\n${file.mimeType}\n${formatFileSize(file.sizeBytes)}`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => void openFilePreviewInNewTab(file)}
-                            className="relative w-full text-left"
-                          >
-                            <RemoteFileThumbnail file={file} />
-                            <div className="pointer-events-none absolute inset-x-3 top-3 hidden opacity-0 transition-opacity duration-200 group-hover:opacity-100 md:block">
-                              <div className="rounded-lg bg-background/85 px-3 py-2 text-xs shadow-lg backdrop-blur">
-                                <p className="truncate font-medium text-foreground">{file.name}</p>
-                                <p className="truncate text-[11px] text-muted-foreground">{file.mimeType}</p>
+                    {uploadQueue.length > 0 && (
+                      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+                        {uploadQueue.map((item) => (
+                          <div key={item.id} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-center">
+                            <div className="flex justify-center sm:block">
+                              <UploadCircle progress={item.progress} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-2 flex items-start gap-3">
+                                <FileThumb mimeType={item.mimeType} fileName={item.fileName} previewUrl={item.previewUrl} compact />
+                                <div className="min-w-0 flex-1 overflow-hidden">
+                                  <p className="overflow-hidden break-words text-sm font-medium [overflow-wrap:anywhere]">
+                                    {item.fileName}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{formatFileSize(item.sizeBytes)}</p>
+                                </div>
+                              </div>
+                              <div className="h-1.5 overflow-hidden rounded-full bg-border/60">
+                                <div
+                                  className="h-full rounded-full bg-primary transition-[width] duration-200"
+                                  style={{ width: `${item.progress}%` }}
+                                />
                               </div>
                             </div>
-                            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
-                                {formatFileSize(file.sizeBytes)}
-                              </span>
-                              <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
-                                {getFileFormatLabel(file.name, file.mimeType)}
-                              </span>
-                            </div>
-                          </button>
-                          <div className="flex items-center justify-end gap-3 border-t px-4 py-3">
-                            <DownloadButton fileId={file.id} />
-                            <Button
-                              variant="secondary"
-                              size="icon"
-                              className="h-10 w-10 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteFile(file.id);
-                              }}
-                              aria-label="Delete file"
-                              title="Delete file"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {isBoardLoading ? null : board?.files && board.files.length > 0 ? (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-end gap-3">
+                          <Button variant="outline" onClick={handleDeleteAll} disabled={isDeletingAll}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {isDeletingAll ? "Deleting..." : "Delete all"}
+                          </Button>
+                          <Button variant="outline" onClick={handleDownloadAll} disabled={isDownloadingAll}>
+                            <Download className="mr-2 h-4 w-4" />
+                            {isDownloadingAll ? "Preparing zip..." : "Download all"}
+                          </Button>
                         </div>
-                      ))}
-                    </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          {board.files.map((file: BoardFileItem) => (
+                            <div
+                              key={file.id}
+                              className="group overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/30"
+                              title={`${file.name}\n${file.mimeType}\n${formatFileSize(file.sizeBytes)}`}
+                            >
+                              <button type="button" onClick={() => void openFilePreviewInNewTab(file)} className="relative w-full text-left">
+                                <RemoteFileThumbnail file={file} />
+                                <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+                                    {formatFileSize(file.sizeBytes)}
+                                  </span>
+                                  <span className="rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+                                    {getFileFormatLabel(file.name, file.mimeType)}
+                                  </span>
+                                </div>
+                              </button>
+                              <div className="flex items-center justify-end gap-3 border-t px-4 py-3">
+                                <DownloadButton fileId={file.id} />
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-10 w-10 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleDeleteFile(file.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      !isBoardLoading && (
+                        <div className="py-12 text-center text-xl text-muted-foreground">
+                          No files yet. Upload some files to share!
+                        </div>
+                      )
+                    )}
                   </div>
-                ) : null}
+                )}
               </CardContent>
             </Card>
-          )}
-        </div>
+          </>
+        )}
+
+        {activeView === "screen" && (
+          <Card className="border-primary/20 shadow-sm">
+            <CardContent className="space-y-5 p-4 sm:p-6">
+              {!screenRoom && (
+                <>
+                  <div className="rounded-xl border bg-card p-3.5 sm:p-4">
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                        <Lock className="h-4.5 w-4.5" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Create Private Room</h2>
+                        <p className="mt-0.5 text-xs text-muted-foreground">Room code generate hoga aur sirf same network par work karega.</p>
+                      </div>
+                    </div>
+                    <Button
+                      className="h-10 w-full rounded-lg text-sm font-semibold"
+                      onClick={() => void handleCreateRoom()}
+                      disabled={isScreenActionPending}
+                    >
+                      {isScreenActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
+                      Create New Room
+                    </Button>
+                  </div>
+
+                  <div className="rounded-xl border bg-card p-3.5 sm:p-4">
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className="rounded-lg bg-muted p-2 text-muted-foreground">
+                        <Users className="h-4.5 w-4.5" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Join Existing Room</h2>
+                        <p className="mt-0.5 text-xs text-muted-foreground">Neeche room code enter karke live screen dekh sakte ho.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 lg:flex-row">
+                      <input
+                        value={roomCodeInput}
+                        onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())}
+                        placeholder="ENTER ROOM CODE"
+                        className="h-10 flex-1 rounded-lg border border-input bg-background px-3.5 text-center font-mono text-sm tracking-[0.18em] text-foreground outline-none transition focus:border-primary"
+                      />
+                      <Button
+                        variant="secondary"
+                        className="h-10 rounded-lg px-5 text-sm font-semibold"
+                        onClick={() => void handleJoinRoom()}
+                        disabled={isScreenActionPending}
+                      >
+                        {isScreenActionPending ? "Joining..." : "Join"}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {screenRoom && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3 rounded-xl border bg-card p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Badge className="rounded-full bg-teal-50 px-4 py-1 text-sm font-semibold text-teal-700 hover:bg-teal-50">
+                          Room {screenRoom.code}
+                        </Badge>
+                        <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
+                          {screenRoom.role === "host" ? "Creator" : "Viewer"}
+                        </Badge>
+                      </div>
+                      <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-foreground">
+                        {screenRoom.role === "host" ? "You are controlling this room" : `Watching ${screenRoom.hostLabel}`}
+                      </h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {screenRoom.isSharing
+                          ? "Live screen is active."
+                          : screenRoom.role === "host"
+                            ? "Start screen share to broadcast your display."
+                            : "Waiting for the creator to start sharing."}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        className="h-8 px-2.5 text-xs"
+                        onClick={() => {
+                          void copyTextToClipboard(screenRoom.code);
+                          toast({ title: "Room code copied" });
+                        }}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy code
+                      </Button>
+                      <Button variant="outline" className="h-8 px-2.5 text-xs" onClick={() => void handleLeaveRoom()} disabled={isScreenActionPending}>
+                        <X className="mr-2 h-4 w-4" />
+                        Leave
+                      </Button>
+                      {screenRoom.role === "host" && (
+                        <Button
+                          variant="destructive"
+                          className="h-8 px-2.5 text-xs"
+                          onClick={() => void handleCloseRoom()}
+                          disabled={isScreenActionPending}
+                        >
+                          Close room
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.8fr)]">
+                    <div className="rounded-xl border bg-card p-3.5">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Live Screen</p>
+                          <p className="mt-1 text-base font-semibold text-foreground">
+                            {screenRoom.isSharing ? "Broadcast running" : "No active stream"}
+                          </p>
+                        </div>
+
+                        {screenRoom.role === "host" && (
+                          <div className="flex flex-wrap gap-2">
+                            {!isSharingLocally ? (
+                              <Button
+                                className="h-8 bg-teal-500 px-2.5 text-xs hover:bg-teal-600"
+                                onClick={() => void handleStartSharing()}
+                                disabled={isStartingShare}
+                              >
+                                {isStartingShare ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Monitor className="mr-2 h-4 w-4" />}
+                                Start share
+                              </Button>
+                            ) : (
+                              <Button variant="outline" className="h-8 px-2.5 text-xs" onClick={() => void handleStopSharing()} disabled={isStoppingShare}>
+                                {isStoppingShare ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
+                                Stop share
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="overflow-hidden rounded-xl border bg-slate-950">
+                        {latestFrame?.imageDataUrl ? (
+                          <img
+                            src={latestFrame.imageDataUrl}
+                            alt="Shared screen preview"
+                            className="aspect-video w-full object-contain"
+                          />
+                        ) : (
+                          <div className="flex aspect-video flex-col items-center justify-center gap-3 px-4 text-center text-slate-300">
+                            <Monitor className="h-8 w-8 text-slate-500" />
+                            <div>
+                              <p className="text-base font-semibold">
+                                {screenRoom.role === "host" ? "Your screen preview will appear here" : "Waiting for live screen"}
+                              </p>
+                              <p className="mt-1.5 text-xs text-slate-400">
+                                {screenRoom.role === "host"
+                                  ? "Browser will ask which screen or window to share."
+                                  : "Jaise hi creator share start karega, preview auto update ho jayegi."}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="rounded-xl border bg-card p-3.5">
+                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Room details</p>
+                        <div className="mt-3 grid gap-3">
+                          <div className="rounded-lg bg-muted/50 px-3 py-2">
+                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Room code</p>
+                            <p className="mt-1 font-mono text-base font-semibold tracking-[0.16em] text-foreground">
+                              {screenRoom.code}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-muted/50 px-3 py-2">
+                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Participants</p>
+                            <p className="mt-1 text-base font-semibold text-foreground">{screenRoom.participantCount}</p>
+                          </div>
+                          <div className="rounded-lg bg-muted/50 px-3 py-2">
+                            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Viewers</p>
+                            <p className="mt-1 text-base font-semibold text-foreground">{screenRoom.viewerCount}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border bg-card p-3.5">
+                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Connected users</p>
+                        <div className="mt-3 space-y-2.5">
+                          {screenRoom.participants.map((participant) => (
+                            <div key={participant.deviceId} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">
+                                  {participant.label} {participant.isCurrent ? "(You)" : ""}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {participant.role === "host" ? "Creator" : "Viewer"}
+                                </p>
+                              </div>
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {screenMessage && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {screenMessage}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <video ref={captureVideoRef} className="hidden" muted playsInline />
+        <canvas ref={captureCanvasRef} className="hidden" />
       </div>
     </div>
   );
