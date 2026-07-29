@@ -28,6 +28,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Lock,
+  Maximize,
   Monitor,
   RefreshCw,
   Save,
@@ -413,6 +414,7 @@ export function Home() {
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const captureStreamRef = useRef<MediaStream | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
+  const screenPreviewRef = useRef<HTMLDivElement | null>(null);
   const localFrameSequenceRef = useRef(0);
 
   useEffect(() => {
@@ -886,6 +888,28 @@ export function Home() {
     }
   };
 
+  const handleFullscreenPreview = async () => {
+    const previewElement = screenPreviewRef.current;
+    if (!previewElement) {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === previewElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      await previewElement.requestFullscreen();
+    } catch (error) {
+      toast({
+        title: "Fullscreen unavailable",
+        description: error instanceof Error ? error.message : "Could not open fullscreen preview.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const isSharingLocally = captureStreamRef.current !== null && captureIntervalRef.current !== null;
 
   const networkBanner = (
@@ -1269,9 +1293,15 @@ export function Home() {
                           </p>
                         </div>
 
-                        {screenRoom.role === "host" && (
-                          <div className="flex flex-wrap gap-2">
-                            {!isSharingLocally ? (
+                        <div className="flex flex-wrap gap-2">
+                          {latestFrame?.imageDataUrl && (
+                            <Button variant="outline" className="h-8 px-2.5 text-xs" onClick={() => void handleFullscreenPreview()}>
+                              <Maximize className="mr-2 h-3.5 w-3.5" />
+                              Full screen
+                            </Button>
+                          )}
+                          {screenRoom.role === "host" && (
+                            !isSharingLocally ? (
                               <Button
                                 className="h-8 bg-teal-500 px-2.5 text-xs hover:bg-teal-600"
                                 onClick={() => void handleStartSharing()}
@@ -1285,12 +1315,12 @@ export function Home() {
                                 {isStoppingShare ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <X className="mr-2 h-4 w-4" />}
                                 Stop share
                               </Button>
-                            )}
-                          </div>
-                        )}
+                            )
+                          )}
+                        </div>
                       </div>
 
-                      <div className="overflow-hidden rounded-xl border bg-slate-950">
+                      <div ref={screenPreviewRef} className="overflow-hidden rounded-xl border bg-slate-950">
                         {latestFrame?.imageDataUrl ? (
                           <img
                             src={latestFrame.imageDataUrl}
