@@ -11,8 +11,24 @@ export type ScreenShareParticipant = {
   lastSeen: Date;
 };
 
+export type ScreenShareEvent =
+  | {
+      type: "frame";
+      sequence: number;
+      capturedAt: string;
+      width: number;
+      height: number;
+    }
+  | {
+      type: "stopped";
+    }
+  | {
+      type: "closed";
+    };
+
 type ScreenFrame = {
-  imageDataUrl: string;
+  imageBuffer: Buffer;
+  mimeType: string;
   width: number;
   height: number;
   capturedAt: Date;
@@ -55,17 +71,35 @@ function isExpired(room: ScreenShareRoom, current: Date): boolean {
 
 export class ScreenShareStore {
   private rooms = new Map<string, ScreenShareRoom>();
+  private listeners = new Map<string, Set<(event: ScreenShareEvent) => void>>();
+
+  private emit(code: string, event: ScreenShareEvent): void {
+    const listeners = this.listeners.get(code);
+    if (!listeners || listeners.size === 0) {
+      return;
+    }
+
+    for (const listener of listeners) {
+      listener(event);
+    }
+  }
+
+  private clearListeners(code: string): void {
+    this.listeners.delete(code);
+  }
 
   private cleanup(): void {
     const current = now();
     for (const [code, room] of this.rooms.entries()) {
       if (room.closedAt || isExpired(room, current)) {
         this.rooms.delete(code);
+        this.clearListeners(code);
         continue;
       }
 
       if (room.frame && current.getTime() - room.frame.capturedAt.getTime() > FRAME_TTL_MS) {
         room.frame = null;
+        this.emit(code, { type: "stopped" });
       }
     }
   }
@@ -159,6 +193,8 @@ export class ScreenShareStore {
     room.closedAt = now();
     room.updatedAt = now();
     this.rooms.delete(code);
+    this.emit(code, { type: "closed" });
+    this.clearListeners(code);
     return { room };
   }
 
@@ -179,7 +215,7 @@ export class ScreenShareStore {
     return { room, participant };
   }
 
-  updateFrame(code: string, networkId: string, deviceId: string, imageDataUrl: string, width: number, height: number) {
+  updateFrame(code: string, networkId: string, deviceId: string, imageBuffer: Buffer, mimeType: string, width: number, height: number) {
     const touched = this.touchRoom(code, networkId, deviceId);
     if ("error" in touched) {
       return touched;
@@ -190,13 +226,21 @@ export class ScreenShareStore {
 
     const nextSequence = (touched.room.frame?.sequence ?? 0) + 1;
     touched.room.frame = {
-      imageDataUrl,
+      imageBuffer,
+      mimeType,
       width,
       height,
       capturedAt: now(),
       sequence: nextSequence,
     };
     touched.room.updatedAt = now();
+    this.emit(code, {
+      type: "frame",
+      sequence: nextSequence,
+      capturedAt: touched.room.frame.capturedAt.toISOString(),
+      width,
+      height,
+    });
     return { room: touched.room, frame: touched.room.frame };
   }
 
@@ -211,6 +255,7 @@ export class ScreenShareStore {
 
     touched.room.frame = null;
     touched.room.updatedAt = now();
+    this.emit(code, { type: "stopped" });
     return { room: touched.room };
   }
 
@@ -248,6 +293,37 @@ export class ScreenShareStore {
       room: touched.room,
       participant: touched.participant,
       frame: touched.room.frame,
+    };
+  }
+
+  subscribe(code: string, networkId: string, deviceId: string, listener: (event: ScreenShareEvent) => void) {
+    const touched = this.touchRoom(code, networkId, deviceId);
+    if ("error" in touched) {
+      return touched;
+    }
+
+    let listeners = this.listeners.get(code);
+    if (!listeners) {
+      listeners = new Set();
+      this.listeners.set(code, listeners);
+    }
+
+    listeners.add(listener);
+
+    return {
+      room: touched.room,
+      participant: touched.participant,
+      unsubscribe: () => {
+        const currentListeners = this.listeners.get(code);
+        if (!currentListeners) {
+          return;
+        }
+
+        currentListeners.delete(listener);
+        if (currentListeners.size === 0) {
+          this.listeners.delete(code);
+        }
+      },
     };
   }
 }

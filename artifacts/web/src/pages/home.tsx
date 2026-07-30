@@ -41,13 +41,13 @@ import {
 } from "lucide-react";
 
 const POLL_INTERVAL = 3000;
-const SCREEN_STATUS_POLL_MS = 2000;
-const SCREEN_CAPTURE_INTERVAL_MS = 1200;
+const SCREEN_STATUS_POLL_MS = 5000;
+const SCREEN_CAPTURE_INTERVAL_MS = 450;
 const MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = "1GB";
 const READ_PROGRESS_SHARE = 0.15;
-const MAX_CAPTURE_WIDTH = 1280;
-const JPEG_QUALITY = 0.6;
+const MAX_CAPTURE_WIDTH = 960;
+const JPEG_QUALITY = 0.5;
 const APP_BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type BoardFileItem = {
@@ -91,17 +91,44 @@ type ScreenRoomStatus = {
 };
 
 type ScreenFrame = {
-  imageDataUrl: string;
+  imageUrl: string;
   width: number;
   height: number;
   sequence: number;
   capturedAt: string;
+  localObjectUrl: boolean;
 };
 
 type ScreenFrameResponse = {
   code: string;
-  frame: ScreenFrame | null;
+  frame:
+    | {
+        imageDataUrl: string;
+        width: number;
+        height: number;
+        sequence: number;
+        capturedAt: string;
+      }
+    | null;
 };
+
+type ScreenShareEvent =
+  | {
+      type: "frame";
+      sequence: number;
+      capturedAt: string;
+      width: number;
+      height: number;
+    }
+  | {
+      type: "stopped";
+    }
+  | {
+      type: "closed";
+    }
+  | {
+      type: "ready";
+    };
 
 const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
 const isVideoMime = (mime: string) => mime.toLowerCase().startsWith("video/");
@@ -252,6 +279,14 @@ function formatBoardCountdown(minutes: number) {
 
 function copyTextToClipboard(value: string) {
   return navigator.clipboard.writeText(value);
+}
+
+function createRemoteFrameUrl(code: string, sequence: number, capturedAt: string) {
+  const params = new URLSearchParams({
+    sequence: String(sequence),
+    capturedAt,
+  });
+  return `/api/screen-share/rooms/${code}/frame/image?${params.toString()}`;
 }
 
 function DownloadButton({ fileId }: { fileId: string }) {
@@ -410,12 +445,23 @@ export function Home() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const latestFrameSequenceRef = useRef(0);
+  const latestFrameRef = useRef<ScreenFrame | null>(null);
   const captureVideoRef = useRef<HTMLVideoElement | null>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const captureStreamRef = useRef<MediaStream | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
   const screenPreviewRef = useRef<HTMLDivElement | null>(null);
+  const screenEventsRef = useRef<EventSource | null>(null);
   const localFrameSequenceRef = useRef(0);
+
+  const replaceLatestFrame = (nextFrame: ScreenFrame | null) => {
+    setLatestFrame((current) => {
+      if (current?.localObjectUrl) {
+        URL.revokeObjectURL(current.imageUrl);
+      }
+      return nextFrame;
+    });
+  };
 
   useEffect(() => {
     if (board?.text && !document.activeElement?.matches("textarea")) {
@@ -427,15 +473,22 @@ export function Home() {
 
   useEffect(() => {
     latestFrameSequenceRef.current = latestFrame?.sequence ?? 0;
+    latestFrameRef.current = latestFrame;
   }, [latestFrame]);
 
   useEffect(() => {
     return () => {
+      if (screenEventsRef.current) {
+        screenEventsRef.current.close();
+      }
       if (captureIntervalRef.current !== null) {
         window.clearInterval(captureIntervalRef.current);
       }
       if (captureStreamRef.current) {
         captureStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (latestFrameRef.current?.localObjectUrl) {
+        URL.revokeObjectURL(latestFrameRef.current.imageUrl);
       }
     };
   }, []);
@@ -479,19 +532,30 @@ export function Home() {
       setScreenRoom(nextRoom);
 
       if (!nextRoom.isSharing) {
-        setLatestFrame(null);
+        replaceLatestFrame(null);
         latestFrameSequenceRef.current = 0;
         return;
       }
 
-      if (nextRoom.frameSequence !== latestFrameSequenceRef.current) {
+      if (nextRoom.frameSequence !== latestFrameSequenceRef.current && nextRoom.frameCapturedAt) {
         const frameResponse = await apiRequest<ScreenFrameResponse>(`/api/screen-share/rooms/${code}/frame`);
-        setLatestFrame(frameResponse.frame);
+        replaceLatestFrame(
+          frameResponse.frame
+            ? {
+                imageUrl: frameResponse.frame.imageDataUrl,
+                width: frameResponse.frame.width,
+                height: frameResponse.frame.height,
+                sequence: frameResponse.frame.sequence,
+                capturedAt: frameResponse.frame.capturedAt,
+                localObjectUrl: false,
+              }
+            : null,
+        );
       }
     } catch (error) {
       stopLocalCapture();
       setScreenRoom(null);
-      setLatestFrame(null);
+      replaceLatestFrame(null);
       setScreenMessage(error instanceof Error ? error.message : "Screen room is no longer available.");
     }
   };
@@ -509,6 +573,85 @@ export function Home() {
       window.clearInterval(intervalId);
     };
   }, [screenRoom?.code]);
+
+  useEffect(() => {
+    if (!screenRoom?.code) {
+      if (screenEventsRef.current) {
+        screenEventsRef.current.close();
+        screenEventsRef.current = null;
+      }
+      return;
+    }
+
+    const events = new EventSource(`/api/screen-share/rooms/${screenRoom.code}/events`);
+    screenEventsRef.current = events;
+
+    events.onmessage = (message) => {
+      const payload = JSON.parse(message.data) as ScreenShareEvent;
+
+      if (payload.type === "ready") {
+        return;
+      }
+
+      if (payload.type === "frame") {
+        setScreenRoom((current) =>
+          current
+            ? {
+                ...current,
+                isSharing: true,
+                frameSequence: payload.sequence,
+                frameCapturedAt: payload.capturedAt,
+              }
+            : current,
+        );
+
+        const isLocalHostPreview = captureStreamRef.current !== null && screenRoom.role === "host";
+        if (!isLocalHostPreview) {
+          replaceLatestFrame({
+            imageUrl: createRemoteFrameUrl(screenRoom.code, payload.sequence, payload.capturedAt),
+            width: payload.width,
+            height: payload.height,
+            sequence: payload.sequence,
+            capturedAt: payload.capturedAt,
+            localObjectUrl: false,
+          });
+        }
+        return;
+      }
+
+      if (payload.type === "stopped") {
+        replaceLatestFrame(null);
+        setScreenRoom((current) =>
+          current
+            ? {
+                ...current,
+                isSharing: false,
+                frameCapturedAt: null,
+              }
+            : current,
+        );
+        return;
+      }
+
+      stopLocalCapture();
+      setScreenRoom(null);
+      replaceLatestFrame(null);
+      setScreenMessage("Screen room was closed.");
+    };
+
+    events.onerror = () => {
+      if (events.readyState === EventSource.CLOSED) {
+        screenEventsRef.current = null;
+      }
+    };
+
+    return () => {
+      events.close();
+      if (screenEventsRef.current === events) {
+        screenEventsRef.current = null;
+      }
+    };
+  }, [screenRoom?.code, screenRoom?.role]);
 
   const handleSaveText = () => {
     if (!textContent.trim()) return;
@@ -689,7 +832,7 @@ export function Home() {
       });
       setScreenRoom(room);
       setRoomCodeInput(room.code);
-      setLatestFrame(null);
+      replaceLatestFrame(null);
       localFrameSequenceRef.current = 0;
       toast({ title: "Room created", description: `Room code: ${room.code}` });
     } catch (error) {
@@ -735,7 +878,7 @@ export function Home() {
       stopLocalCapture();
       await apiRequest(`/api/screen-share/rooms/${screenRoom.code}/leave`, { method: "POST" }, false);
       setScreenRoom(null);
-      setLatestFrame(null);
+      replaceLatestFrame(null);
       localFrameSequenceRef.current = 0;
       setScreenMessage("You left the room.");
     } catch (error) {
@@ -755,7 +898,7 @@ export function Home() {
       stopLocalCapture();
       await apiRequest(`/api/screen-share/rooms/${screenRoom.code}/close`, { method: "POST" }, false);
       setScreenRoom(null);
-      setLatestFrame(null);
+      replaceLatestFrame(null);
       localFrameSequenceRef.current = 0;
       setScreenMessage("Room closed.");
       toast({ title: "Room closed" });
@@ -775,7 +918,7 @@ export function Home() {
       setIsStoppingShare(true);
       stopLocalCapture();
       await apiRequest(`/api/screen-share/rooms/${screenRoom.code}/stop`, { method: "POST" }, false);
-      setLatestFrame(null);
+      replaceLatestFrame(null);
       await refreshScreenRoom(screenRoom.code);
     } catch (error) {
       setScreenMessage(error instanceof Error ? error.message : "Could not stop screen sharing.");
@@ -807,23 +950,43 @@ export function Home() {
     }
 
     context.drawImage(video, 0, 0, width, height);
-    const imageDataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    const frameBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("Could not capture screen frame."));
+          return;
+        }
+        resolve(blob);
+      }, "image/jpeg", JPEG_QUALITY);
+    });
 
-    await apiRequest(`/api/screen-share/rooms/${code}/frame`, {
+    const response = await fetch(`/api/screen-share/rooms/${code}/frame`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageDataUrl, width, height }),
-    }, false);
+      headers: {
+        "Content-Type": frameBlob.type,
+        "x-frame-width": String(width),
+        "x-frame-height": String(height),
+      },
+      body: frameBlob,
+    });
+
+    const errorText = await response.text();
+    if (!response.ok) {
+      const payload = errorText ? (JSON.parse(errorText) as { error?: string }) : null;
+      throw new Error(payload?.error ?? `Request failed with status ${response.status}.`);
+    }
 
     localFrameSequenceRef.current += 1;
     const capturedAt = new Date().toISOString();
+    const imageUrl = URL.createObjectURL(frameBlob);
 
-    setLatestFrame({
-      imageDataUrl,
+    replaceLatestFrame({
+      imageUrl,
       width,
       height,
       sequence: localFrameSequenceRef.current,
       capturedAt,
+      localObjectUrl: true,
     });
 
     setScreenRoom((current) =>
@@ -848,7 +1011,10 @@ export function Home() {
       setScreenMessage(null);
 
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: 1 },
+        video: {
+          frameRate: { ideal: 8, max: 12 },
+          width: { ideal: 1280, max: 1920 },
+        },
         audio: false,
       });
 
@@ -1294,7 +1460,7 @@ export function Home() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {latestFrame?.imageDataUrl && (
+                          {latestFrame?.imageUrl && (
                             <Button variant="outline" className="h-8 px-2.5 text-xs" onClick={() => void handleFullscreenPreview()}>
                               <Maximize className="mr-2 h-3.5 w-3.5" />
                               Full screen
@@ -1321,9 +1487,9 @@ export function Home() {
                       </div>
 
                       <div ref={screenPreviewRef} className="overflow-hidden rounded-xl border bg-slate-950">
-                        {latestFrame?.imageDataUrl ? (
+                        {latestFrame?.imageUrl ? (
                           <img
-                            src={latestFrame.imageDataUrl}
+                            src={latestFrame.imageUrl}
                             alt="Shared screen preview"
                             className="aspect-video w-full object-contain"
                           />

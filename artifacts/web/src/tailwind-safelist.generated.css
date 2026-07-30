@@ -50,6 +50,7 @@
 @source inline(".match(/filename=");
 @source inline(".replace(/");
 @source inline(".replace(/javascript:/gi,");
+@source inline(".role])");
 @source inline(".split(/");
 @source inline(".split(/[+");
 @source inline(".text])");
@@ -1434,6 +1435,8 @@
 @source inline("whitespace-pre-wrap");
 @source inline("Wi-Fi,");
 @source inline("width=device-width,");
+@source inline("x-frame-height");
+@source inline("x-frame-width");
 @source inline("xl:grid-cols-3");
 @source inline("z-[1]");
 @source inline("z-[100]");
