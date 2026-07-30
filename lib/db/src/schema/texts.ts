@@ -1,9 +1,9 @@
-import { mysqlTable, text, timestamp } from "drizzle-orm/mysql-core";
+import { mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 import { roomsTable } from "./rooms";
 
 export const textsTable = mysqlTable("texts", {
-  id: text("id").primaryKey(),
-  roomId: text("room_id").notNull().references(() => roomsTable.id, { onDelete: "cascade" }),
+  id: varchar("id", { length: 191 }).primaryKey(),
+  roomId: varchar("room_id", { length: 191 }).notNull().references(() => roomsTable.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   deviceLabel: text("device_label").notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),

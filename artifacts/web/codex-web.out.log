@@ -1,0 +1,5 @@
+
+> @workspace/web@0.0.0 dev C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\artifacts\web
+> vite --config vite.config.ts --host 0.0.0.0
+
+ ELIFECYCLE  Command failed with exit code 1.

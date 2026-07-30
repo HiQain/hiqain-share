@@ -1,7 +1,7 @@
-import { mysqlTable, text, timestamp } from "drizzle-orm/mysql-core";
+import { mysqlTable, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 export const roomsTable = mysqlTable("rooms", {
-  id: text("id").primaryKey(),
+  id: varchar("id", { length: 191 }).primaryKey(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 

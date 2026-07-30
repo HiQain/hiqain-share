@@ -1,0 +1,36 @@
+=8081 : The term '=8081' is not recognized as the name of a cmdlet, function, script file, or operable program. Check 
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ ='8081'; ='http://127.0.0.1:3000'; pnpm.cmd run dev
++ ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (=8081:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+=http://127.0.0.1:3000 : The term '=http://127.0.0.1:3000' is not recognized as the name of a cmdlet, function, script 
+file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct 
+and try again.
+At line:1 char:10
++ ='8081'; ='http://127.0.0.1:3000'; pnpm.cmd run dev
++          ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (=http://127.0.0.1:3000:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+X [ERROR] Cannot read directory "../../../../..": Access is denied.
+
+X [ERROR] Could not resolve "C:\\Users\\Siddique\\Desktop\\hiqain-projects\\hiqain-share\\artifacts\\web\\vite.config.ts"
+
+[31mfailed to load config from C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\artifacts\web\vite.config.ts[39m
+[31merror when starting dev server:
+Error: Build failed with 2 errors:
+error: Cannot read directory "../../../../..": Access is denied.
+error: Could not resolve "C:\\Users\\Siddique\\Desktop\\hiqain-projects\\hiqain-share\\artifacts\\web\\vite.config.ts"
+    at failureErrorWithLog (C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:926:25
+    at runOnEndCallbacks (C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:1307:45)
+    at buildResponseToResult (C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:924:7)
+    at C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:951:16
+    at responseCallbacks.<computed> (C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\node_modules\.pnpm\esbuild@0.27.3\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:509:28)
+    at addChunk (node:internal/streams/readable:563:12)[39m

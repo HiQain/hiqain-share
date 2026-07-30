@@ -1,0 +1,10 @@
+
+> @workspace/api-server@0.0.0 dev C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\artifacts\api-server
+> pnpm run build && node --env-file=.env --enable-source-maps ./dist/index.mjs
+
+
+> @workspace/api-server@0.0.0 build C:\Users\Siddique\Desktop\hiqain-projects\hiqain-share\artifacts\api-server
+> node --env-file=.env ./build.mjs
+
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.

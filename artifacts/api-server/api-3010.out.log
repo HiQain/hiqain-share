@@ -1,0 +1,2 @@
+{"level":30,"time":1785436011072,"pid":8432,"hostname":"DESKTOP-I8P3MUL","port":3010,"msg":"Server listening"}
+{"level":30,"time":1785436012678,"pid":8432,"hostname":"DESKTOP-I8P3MUL","req":{"id":1,"method":"GET","url":"/api/board"},"res":{"statusCode":200},"responseTime":98,"msg":"request completed"}
