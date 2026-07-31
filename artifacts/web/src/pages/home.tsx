@@ -272,9 +272,12 @@ async function apiRequest<T>(input: string, init?: RequestInit, expectJson = tru
   return (expectJson ? (data as T) : (undefined as T));
 }
 
-function formatBoardCountdown(minutes: number) {
-  const safeMinutes = Math.max(0, minutes);
-  return `${String(safeMinutes).padStart(2, "0")}:00`;
+function formatBoardCountdown(remainingMs: number) {
+  const safeMs = Math.max(0, remainingMs);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function copyTextToClipboard(value: string) {
@@ -442,6 +445,8 @@ export function Home() {
   const [isScreenActionPending, setIsScreenActionPending] = useState(false);
   const [isStartingShare, setIsStartingShare] = useState(false);
   const [isStoppingShare, setIsStoppingShare] = useState(false);
+  const [countdownNow, setCountdownNow] = useState(() => Date.now());
+  const [boardExpiryMs, setBoardExpiryMs] = useState(() => Date.now() + (30 * 60 * 1000));
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const latestFrameSequenceRef = useRef(0);
@@ -475,6 +480,25 @@ export function Home() {
     latestFrameSequenceRef.current = latestFrame?.sequence ?? 0;
     latestFrameRef.current = latestFrame;
   }, [latestFrame]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCountdownNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (board?.text?.expiresAt) {
+      setBoardExpiryMs(new Date(board.text.expiresAt).getTime());
+      return;
+    }
+
+    setBoardExpiryMs(Date.now() + ((board?.expiresInMinutes ?? 30) * 60 * 1000));
+  }, [board?.text?.expiresAt, board?.expiresInMinutes]);
 
   useEffect(() => {
     return () => {
@@ -1077,22 +1101,7 @@ export function Home() {
   };
 
   const isSharingLocally = captureStreamRef.current !== null && captureIntervalRef.current !== null;
-
-  const networkBanner = (
-    <div className="rounded-[1rem] border border-border bg-muted/60 px-4 py-3 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 rounded-full bg-background p-2 text-foreground">
-          <AlertTriangle className="h-4 w-4" />
-        </div>
-        <div>
-          <p className="text-base font-semibold tracking-tight text-foreground">Network Mode Active</p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Anyone on the same network may see this content. Use Private Room mode for sensitive data.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  const boardCountdownLabel = formatBoardCountdown(boardExpiryMs - countdownNow);
 
   return (
     <div className="min-h-full bg-background">
@@ -1126,7 +1135,7 @@ export function Home() {
           <div className="flex items-center gap-4 self-end lg:self-auto">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-2 text-base font-medium text-foreground">
               <Clock3 className="h-4 w-4" />
-              Board clears in {formatBoardCountdown(board?.expiresInMinutes ?? 30)}
+              Board clears in {boardCountdownLabel}
             </div>
             <button
               type="button"
@@ -1147,8 +1156,6 @@ export function Home() {
 
         {activeView === "board" && (
           <>
-            {networkBanner}
-
             <Card className="overflow-hidden border-primary/20 shadow-sm">
               <CardHeader className="border-b px-4 py-0 sm:px-6">
                 <div className="flex items-center gap-8 overflow-x-auto">
