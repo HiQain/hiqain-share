@@ -1,5 +1,5 @@
 import { Globe } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   Select,
   SelectContent,
@@ -8,33 +8,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-declare global {
-  interface Window {
-    google?: {
-      translate?: {
-        TranslateElement?: {
-          InlineLayout?: {
-            SIMPLE: unknown;
-          };
-          new (
-            options: {
-              pageLanguage: string;
-              includedLanguages: string;
-              autoDisplay: boolean;
-              layout?: unknown;
-            },
-            elementId: string,
-          ): unknown;
-        };
-      };
-    };
-    googleTranslateElementInit?: () => void;
-    __phoneFormatterTranslateReady?: boolean;
-  }
-}
-
-const GOOGLE_SCRIPT_ID = "google-translate-script";
 const STORAGE_KEY = "phone-formatter-language";
+const PAGE_SOURCE_LANG = "en";
+const OBSERVER_DEBOUNCE_MS = 350;
 
 export const LANGUAGE_OPTIONS: ReadonlyArray<{
   label: string;
@@ -155,185 +131,300 @@ const FOOTER_LANGUAGE_OPTIONS = LANGUAGE_OPTIONS.filter((language) =>
   FOOTER_LANGUAGE_CODES.includes(language.code),
 );
 
-type LanguageCode = (typeof LANGUAGE_OPTIONS)[number]["code"];
-
 function formatLanguageTriggerLabel(languageCode: string) {
   const [baseCode] = languageCode.split("-");
   return baseCode ? `${baseCode.charAt(0).toUpperCase()}${baseCode.slice(1)}` : "En";
 }
 
-function getGoogleTranslateCookieValue(languageCode: string) {
-  return `/en/${languageCode}`;
-}
+// --- In-page translation engine -------------------------------------------
+// Translates the rendered DOM directly via Google's translate endpoint,
+// instead of Google's Website Translator widget (which injects the
+// "Translated to: X / Show original" banner and forces a full page reload).
 
-function setGoogleTranslateCookie(languageCode: string) {
-  const value = getGoogleTranslateCookieValue(languageCode);
-  const cookie = `googtrans=${value}; path=/`;
+type AttributeName = "placeholder" | "alt" | "title";
 
-  document.cookie = cookie;
+type AttributeTarget = {
+  element: HTMLElement;
+  attribute: AttributeName;
+  original: string;
+};
 
-  const hostname = window.location.hostname;
+const translationCache = new Map<string, string>();
+const originalTextNodes = new WeakMap<Text, string>();
+const originalAttributes = new WeakMap<HTMLElement, Partial<Record<AttributeName, string>>>();
 
-  if (hostname.includes(".")) {
-    document.cookie = `${cookie}; domain=${hostname}`;
-  }
-}
+let currentLanguage = getStoredLanguage();
+let activeRequestId = 0;
+let observer: MutationObserver | null = null;
+let observerDebounceTimer: number | undefined;
+let initialized = false;
+
+const listeners = new Set<() => void>();
 
 function getStoredLanguage() {
-  const cookieMatch = document.cookie.match(/(?:^|;\s*)googtrans=([^;]+)/);
+  if (typeof window === "undefined") {
+    return PAGE_SOURCE_LANG;
+  }
+  return window.localStorage.getItem(STORAGE_KEY) ?? PAGE_SOURCE_LANG;
+}
 
-  if (cookieMatch?.[1]) {
-    const cookieValue = decodeURIComponent(cookieMatch[1]);
-    const languageFromCookie = cookieValue.split("/").pop();
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+}
 
-    if (languageFromCookie) {
-      return languageFromCookie;
+function getSnapshot() {
+  return currentLanguage;
+}
+
+function notifyListeners() {
+  listeners.forEach((listener) => listener());
+}
+
+function shouldSkipTextNode(node: Text) {
+  const parent = node.parentElement;
+
+  if (!parent || !node.nodeValue || !node.nodeValue.trim()) {
+    return true;
+  }
+
+  if (parent.closest(".notranslate")) {
+    return true;
+  }
+
+  if (parent.closest("script, style, noscript, iframe, svg, code, pre, textarea, input, select")) {
+    return true;
+  }
+
+  return false;
+}
+
+function collectTextNodes(): Text[] {
+  const nodes: Text[] = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => (shouldSkipTextNode(node as Text) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+
+  let current = walker.nextNode();
+  while (current) {
+    const textNode = current as Text;
+    if (!originalTextNodes.has(textNode)) {
+      originalTextNodes.set(textNode, textNode.nodeValue ?? "");
     }
+    nodes.push(textNode);
+    current = walker.nextNode();
   }
 
-  return window.localStorage.getItem(STORAGE_KEY) ?? "en";
+  return nodes;
 }
 
-function getTranslateSelect() {
-  return document.querySelector<HTMLSelectElement>(".goog-te-combo");
-}
-
-function dispatchTranslateChange(languageCode: string) {
-  const select = getTranslateSelect();
-
-  if (!select) {
-    return false;
-  }
-
-  select.value = languageCode;
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-  document.documentElement.lang = languageCode;
-  window.localStorage.setItem(STORAGE_KEY, languageCode);
-  return true;
-}
-
-function translateToLanguage(languageCode: LanguageCode, selectedLanguage: string) {
-  if (languageCode === selectedLanguage) {
-    return;
-  }
-
-  setGoogleTranslateCookie(languageCode);
-  window.localStorage.setItem(STORAGE_KEY, languageCode);
-  document.documentElement.lang = languageCode;
-
-  if (dispatchTranslateChange(languageCode)) {
-    window.setTimeout(() => {
-      window.location.reload();
-    }, 150);
-    return;
-  }
-
-  window.location.reload();
-}
-
-function useTranslatorState() {
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
-  const [translatorStatus, setTranslatorStatus] = useState<"loading" | "ready" | "error">(
-    "loading",
+function collectAttributeTargets(): AttributeTarget[] {
+  const elements = document.querySelectorAll<HTMLElement>(
+    "input[placeholder], textarea[placeholder], img[alt], [title]",
   );
+  const targets: AttributeTarget[] = [];
+  const attributeNames: AttributeName[] = ["placeholder", "alt", "title"];
 
-  useEffect(() => {
-    const storedLanguage = getStoredLanguage();
-    setSelectedLanguage(storedLanguage);
+  elements.forEach((element) => {
+    if (element.closest(".notranslate")) {
+      return;
+    }
 
-    const initializeTranslator = () => {
-      if (
-        window.google?.translate?.TranslateElement &&
-        !window.__phoneFormatterTranslateReady
-      ) {
-        new window.google.translate.TranslateElement(
-          {
-            pageLanguage: "en",
-            includedLanguages: LANGUAGE_OPTIONS.map((language) => language.code).join(","),
-            autoDisplay: false,
-            layout: window.google.translate.TranslateElement.InlineLayout?.SIMPLE,
-          },
-          "google_translate_element",
-        );
-
-        window.__phoneFormatterTranslateReady = true;
-      }
-
-      if (!window.__phoneFormatterTranslateReady) {
+    attributeNames.forEach((attribute) => {
+      if (!element.hasAttribute(attribute)) {
         return;
       }
 
-      setTranslatorStatus("ready");
-
-      const languageToApply = getStoredLanguage();
-      window.setTimeout(() => {
-        dispatchTranslateChange(languageToApply);
-      }, 250);
-    };
-
-    window.googleTranslateElementInit = initializeTranslator;
-
-    if (window.google?.translate?.TranslateElement) {
-      initializeTranslator();
-      return undefined;
-    }
-
-    const existingScript = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null;
-
-    const handleScriptLoad = () => {
-      window.setTimeout(() => {
-        if (window.google?.translate?.TranslateElement) {
-          initializeTranslator();
-          return;
-        }
-
-        setTranslatorStatus("error");
-      }, 150);
-    };
-
-    const handleScriptError = () => {
-      setTranslatorStatus("error");
-    };
-
-    if (existingScript) {
-      existingScript.addEventListener("load", handleScriptLoad);
-      existingScript.addEventListener("error", handleScriptError);
-      handleScriptLoad();
-
-      return () => {
-        existingScript.removeEventListener("load", handleScriptLoad);
-        existingScript.removeEventListener("error", handleScriptError);
-      };
-    }
-
-    const script = document.createElement("script");
-    script.id = GOOGLE_SCRIPT_ID;
-    script.src = "https://translate.google.com/translate_a/element.js";
-    script.async = true;
-    script.addEventListener("load", handleScriptLoad);
-    script.addEventListener("error", handleScriptError);
-    document.body.appendChild(script);
-
-    const timeoutId = window.setTimeout(() => {
-      if (!window.google?.translate?.TranslateElement) {
-        setTranslatorStatus("error");
+      const value = element.getAttribute(attribute);
+      if (!value || !value.trim()) {
+        return;
       }
-    }, 8000);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-      script.removeEventListener("load", handleScriptLoad);
-      script.removeEventListener("error", handleScriptError);
-    };
+      let stored = originalAttributes.get(element);
+      if (!stored) {
+        stored = {};
+        originalAttributes.set(element, stored);
+      }
+      if (!stored[attribute]) {
+        stored[attribute] = value;
+      }
+
+      targets.push({ element, attribute, original: stored[attribute]! });
+    });
+  });
+
+  return targets;
+}
+
+function restoreOriginalContent() {
+  collectTextNodes().forEach((node) => {
+    node.nodeValue = originalTextNodes.get(node) ?? node.nodeValue;
+  });
+
+  collectAttributeTargets().forEach((target) => {
+    target.element.setAttribute(target.attribute, target.original);
+  });
+}
+
+async function translateText(text: string, targetLang: string): Promise<string> {
+  const cacheKey = `${targetLang}::${text}`;
+  const cached = translationCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const url =
+    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" +
+    encodeURIComponent(PAGE_SOURCE_LANG) +
+    "&tl=" +
+    encodeURIComponent(targetLang) +
+    "&dt=t&q=" +
+    encodeURIComponent(text);
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Translation request failed");
+    }
+
+    const payload = await response.json();
+    const translated = Array.isArray(payload) && Array.isArray(payload[0])
+      ? payload[0].map((part: unknown[]) => part[0] ?? "").join("")
+      : text;
+
+    translationCache.set(cacheKey, translated);
+    return translated;
+  } catch {
+    return text;
+  }
+}
+
+async function translateInBatches<T>(items: T[], mapper: (item: T) => Promise<void>) {
+  const queue = items.slice();
+  const concurrency = 8;
+
+  async function runWorker(): Promise<void> {
+    const item = queue.shift();
+    if (item === undefined) {
+      return;
+    }
+    await mapper(item);
+    return runWorker();
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, runWorker));
+}
+
+async function runTranslationPass(targetLang: string, requestId: number) {
+  const textNodes = collectTextNodes();
+  const attributeTargets = collectAttributeTargets();
+
+  const uniqueTextMap = new Map<
+    string,
+    Array<{ type: "text"; node: Text } | { type: "attr"; target: AttributeTarget }>
+  >();
+
+  textNodes.forEach((node) => {
+    const original = originalTextNodes.get(node) ?? node.nodeValue ?? "";
+    if (!uniqueTextMap.has(original)) {
+      uniqueTextMap.set(original, []);
+    }
+    uniqueTextMap.get(original)!.push({ type: "text", node });
+  });
+
+  attributeTargets.forEach((target) => {
+    if (!uniqueTextMap.has(target.original)) {
+      uniqueTextMap.set(target.original, []);
+    }
+    uniqueTextMap.get(target.original)!.push({ type: "attr", target });
+  });
+
+  await translateInBatches(Array.from(uniqueTextMap.keys()), async (original) => {
+    const translated = await translateText(original, targetLang);
+    if (requestId !== activeRequestId) {
+      return;
+    }
+
+    uniqueTextMap.get(original)!.forEach((item) => {
+      if (item.type === "text") {
+        item.node.nodeValue = translated;
+      } else {
+        item.target.element.setAttribute(item.target.attribute, translated);
+      }
+    });
+  });
+}
+
+async function withObserverPaused<T>(fn: () => Promise<T>): Promise<T> {
+  observer?.disconnect();
+  try {
+    return await fn();
+  } finally {
+    observer?.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+}
+
+async function applyTranslation(targetLang: string) {
+  const requestId = ++activeRequestId;
+
+  await withObserverPaused(async () => {
+    restoreOriginalContent();
+    if (targetLang !== PAGE_SOURCE_LANG) {
+      await runTranslationPass(targetLang, requestId);
+    }
+  });
+}
+
+function scheduleIncrementalTranslation() {
+  if (currentLanguage === PAGE_SOURCE_LANG) {
+    return;
+  }
+
+  window.clearTimeout(observerDebounceTimer);
+  observerDebounceTimer = window.setTimeout(() => {
+    const requestId = activeRequestId;
+    void withObserverPaused(() => runTranslationPass(currentLanguage, requestId));
+  }, OBSERVER_DEBOUNCE_MS);
+}
+
+function setLanguage(languageCode: string) {
+  if (languageCode === currentLanguage) {
+    return;
+  }
+
+  currentLanguage = languageCode;
+  window.localStorage.setItem(STORAGE_KEY, languageCode);
+  document.documentElement.lang = languageCode;
+  notifyListeners();
+  void applyTranslation(languageCode);
+}
+
+function ensureEngineInitialized() {
+  if (initialized) {
+    return;
+  }
+  initialized = true;
+
+  observer = new MutationObserver(scheduleIncrementalTranslation);
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+  if (currentLanguage !== PAGE_SOURCE_LANG) {
+    document.documentElement.lang = currentLanguage;
+    window.setTimeout(() => void applyTranslation(currentLanguage), 0);
+  }
+}
+
+function useTranslatorState() {
+  const selectedLanguage = useSyncExternalStore(subscribe, getSnapshot);
+
+  useEffect(() => {
+    ensureEngineInitialized();
   }, []);
 
-  const selectLanguage = (languageCode: string) => {
-    setSelectedLanguage(languageCode);
-    translateToLanguage(languageCode as LanguageCode, selectedLanguage);
-  };
-
-  return { selectedLanguage, selectLanguage, translatorStatus };
+  return { selectedLanguage, selectLanguage: setLanguage };
 }
+
+// ---------------------------------------------------------------------------
 
 export function LanguageSelector({
   className,
@@ -346,7 +437,7 @@ export function LanguageSelector({
   return (
     <Select value={selectedLanguage} onValueChange={selectLanguage}>
       <SelectTrigger
-        className={className ?? "h-9 w-[156px] bg-background"}
+        className={`notranslate ${className ?? "h-9 w-[156px] bg-background"}`}
         data-testid="select-language"
         aria-label="Select language"
       >
@@ -355,7 +446,7 @@ export function LanguageSelector({
           <SelectValue placeholder="En">{triggerLabel}</SelectValue>
         </div>
       </SelectTrigger>
-      <SelectContent className="max-h-72 overflow-y-auto">
+      <SelectContent className="notranslate max-h-72 overflow-y-auto">
         {LANGUAGE_OPTIONS.map((language) => (
           <SelectItem key={language.code} value={language.code}>
             <span className={language.italic ? "italic" : undefined}>{language.label}</span>
@@ -367,12 +458,12 @@ export function LanguageSelector({
 }
 
 export function LanguageBar() {
-  const { selectedLanguage, selectLanguage, translatorStatus } = useTranslatorState();
+  const { selectedLanguage, selectLanguage } = useTranslatorState();
 
   return (
     <div className="border-t bg-background/95">
       <div className="container mx-auto flex max-w-6xl flex-col gap-3 px-4 py-5">
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm font-semibold leading-none text-foreground">
+        <div className="notranslate flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm font-semibold leading-none text-foreground">
           {FOOTER_LANGUAGE_OPTIONS.map((language) => {
             const isActive = selectedLanguage === language.code;
 
@@ -394,7 +485,7 @@ export function LanguageBar() {
               </button>
             );
           })}
-        </div> 
+        </div>
       </div>
     </div>
   );

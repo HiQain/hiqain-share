@@ -363,7 +363,7 @@ function FileThumb({
   const sizeClass = compact ? "h-12 w-12 rounded-lg" : "h-44 w-full rounded-none";
 
   if (previewUrl && isImageMime(mimeType)) {
-    return <img src={previewUrl} alt={fileName} className={`${sizeClass} object-cover`} />;
+    return <img src={previewUrl} alt={fileName} className={`notranslate ${sizeClass} object-cover`} />;
   }
 
   if (previewUrl && isVideoMime(mimeType)) {
@@ -1135,7 +1135,7 @@ export function Home() {
           <div className="flex items-center gap-4 self-end lg:self-auto">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-2 text-base font-medium text-foreground">
               <Clock3 className="h-4 w-4" />
-              Board clears in {boardCountdownLabel}
+              Board clears in <span className="notranslate">{boardCountdownLabel}</span>
             </div>
             <button
               type="button"
@@ -1266,7 +1266,7 @@ export function Home() {
                               <div className="mb-2 flex items-start gap-3">
                                 <FileThumb mimeType={item.mimeType} fileName={item.fileName} previewUrl={item.previewUrl} compact />
                                 <div className="min-w-0 flex-1 overflow-hidden">
-                                  <p className="overflow-hidden break-words text-sm font-medium [overflow-wrap:anywhere]">
+                                  <p className="notranslate overflow-hidden break-words text-sm font-medium [overflow-wrap:anywhere]">
                                     {item.fileName}
                                   </p>
                                   <p className="text-xs text-muted-foreground">{formatFileSize(item.sizeBytes)}</p>
@@ -1301,7 +1301,7 @@ export function Home() {
                           {board.files.map((file: BoardFileItem) => (
                             <div
                               key={file.id}
-                              className="group overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/30"
+                              className="notranslate group overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/30"
                               title={`${file.name}\n${file.mimeType}\n${formatFileSize(file.sizeBytes)}`}
                             >
                               <button type="button" onClick={() => void openFilePreviewInNewTab(file)} className="relative w-full text-left">
@@ -1409,14 +1409,20 @@ export function Home() {
                     <div>
                       <div className="flex flex-wrap items-center gap-3">
                         <Badge className="rounded-full bg-teal-50 px-4 py-1 text-sm font-semibold text-teal-700 hover:bg-teal-50">
-                          Room {screenRoom.code}
+                          Room <span className="notranslate">{screenRoom.code}</span>
                         </Badge>
                         <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
                           {screenRoom.role === "host" ? "Creator" : "Viewer"}
                         </Badge>
                       </div>
                       <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-foreground">
-                        {screenRoom.role === "host" ? "You are controlling this room" : `Watching ${screenRoom.hostLabel}`}
+                        {screenRoom.role === "host" ? (
+                          "You are controlling this room"
+                        ) : (
+                          <>
+                            Watching <span className="notranslate">{screenRoom.hostLabel}</span>
+                          </>
+                        )}
                       </h2>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {screenRoom.isSharing
@@ -1524,7 +1530,7 @@ export function Home() {
                         <div className="mt-3 grid gap-3">
                           <div className="rounded-lg bg-muted/50 px-3 py-2">
                             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Room code</p>
-                            <p className="mt-1 font-mono text-base font-semibold tracking-[0.16em] text-foreground">
+                            <p className="notranslate mt-1 font-mono text-base font-semibold tracking-[0.16em] text-foreground">
                               {screenRoom.code}
                             </p>
                           </div>
