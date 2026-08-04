@@ -43,23 +43,27 @@ export function BlogDetailPage() {
 
   return (
     <div className="py-16 md:py-24">
-      <div className="container mx-auto max-w-4xl px-4">
+      <div className="container mx-auto max-w-3xl px-4">
         <Link
           href="/blog"
-          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Blog
         </Link>
 
-        <article className="rounded-[28px] border border-border bg-card p-6 shadow-sm md:p-10">
+        <article className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-md">
           {post.imageDataUrl && (
-            <img src={post.imageDataUrl} alt={post.title} className="mb-8 h-72 w-full rounded-2xl object-cover" />
+            <img src={post.imageDataUrl} alt={post.title} className="h-64 w-full object-cover sm:h-80 md:h-96" />
           )}
-          <p className="mb-4 text-sm text-muted-foreground">{formatBlogDate(post.publishedAt)}</p>
-          <h1 className="mb-4 text-4xl font-bold tracking-tight">{post.title}</h1>
-          <p className="mb-8 text-lg text-muted-foreground">{post.excerpt}</p>
-          <BlogContent content={post.content} />
+          <div className="p-6 md:p-10">
+            <p className="mb-4 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {formatBlogDate(post.publishedAt)}
+            </p>
+            <h1 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">{post.title}</h1>
+            <p className="mb-8 border-l-2 border-primary/40 pl-4 text-lg text-muted-foreground">{post.excerpt}</p>
+            <BlogContent content={post.content} />
+          </div>
         </article>
       </div>
     </div>

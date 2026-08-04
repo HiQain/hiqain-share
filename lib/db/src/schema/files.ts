@@ -1,4 +1,4 @@
-import { mysqlTable, text, int, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { mysqlTable, text, longtext, int, timestamp, varchar } from "drizzle-orm/mysql-core";
 import { roomsTable } from "./rooms";
 
 export const filesTable = mysqlTable("files", {
@@ -7,7 +7,7 @@ export const filesTable = mysqlTable("files", {
   name: text("name").notNull(),
   mimeType: text("mime_type").notNull(),
   sizeBytes: int("size_bytes").notNull(),
-  dataBase64: text("data_base64").notNull(),
+  dataBase64: longtext("data_base64").notNull(),
   deviceLabel: text("device_label").notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),

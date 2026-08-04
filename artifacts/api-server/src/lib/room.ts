@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import crypto from "node:crypto";
 
 export const RETENTION_MINUTES = 30;
@@ -34,6 +34,24 @@ const NOUNS = [
   "Otter", "Falcon", "Cedar", "Fern", "Comet", "Pebble", "Lantern", "Maple",
   "Heron", "Quartz", "Willow", "Sparrow", "Linden", "Harbor", "Meadow", "Drift",
 ];
+
+export function getRequestDevice(req: Request, res: Response) {
+  let deviceId: string = (req as Request & { cookies?: Record<string, string> }).cookies?.["qs_did"] ?? "";
+  if (!/^[a-f0-9]{16}$/.test(deviceId)) {
+    deviceId = getDeviceId(req);
+    res.cookie("qs_did", deviceId, {
+      httpOnly: false,
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 365,
+    });
+  }
+
+  return {
+    deviceId,
+    label: deviceLabelFor(deviceId),
+    networkId: getRoomId(req),
+  };
+}
 
 export function deviceLabelFor(deviceId: string): string {
   const seedA = parseInt(deviceId.slice(0, 6), 16) || 0;

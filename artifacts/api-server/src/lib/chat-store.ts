@@ -1,41 +1,35 @@
 import crypto from "node:crypto";
 
 const ROOM_TTL_MS = 1000 * 60 * 60 * 2;
-const FRAME_TTL_MS = 1000 * 20;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const MAX_MESSAGES_PER_ROOM = 200;
+export const MAX_MESSAGE_LENGTH = 2000;
 
-export type ScreenShareParticipant = {
+export type ChatParticipant = {
   deviceId: string;
   label: string;
-  role: "host" | "viewer";
+  role: "host" | "member";
   lastSeen: Date;
 };
 
-export type ScreenShareEvent =
+export type ChatMessage = {
+  id: string;
+  deviceId: string;
+  label: string;
+  text: string;
+  sentAt: Date;
+};
+
+export type ChatEvent =
   | {
-      type: "frame";
-      sequence: number;
-      capturedAt: string;
-      width: number;
-      height: number;
-    }
-  | {
-      type: "stopped";
+      type: "message";
+      message: ChatMessage;
     }
   | {
       type: "closed";
     };
 
-type ScreenFrame = {
-  imageBuffer: Buffer;
-  mimeType: string;
-  width: number;
-  height: number;
-  capturedAt: Date;
-  sequence: number;
-};
-
-type ScreenShareRoom = {
+type ChatRoom = {
   code: string;
   networkId: string;
   hostDeviceId: string;
@@ -43,8 +37,8 @@ type ScreenShareRoom = {
   createdAt: Date;
   updatedAt: Date;
   closedAt: Date | null;
-  participants: Map<string, ScreenShareParticipant>;
-  frame: ScreenFrame | null;
+  participants: Map<string, ChatParticipant>;
+  messages: ChatMessage[];
 };
 
 function now(): Date {
@@ -65,15 +59,15 @@ function createCode(existing: Set<string>): string {
   return crypto.randomBytes(4).toString("hex").slice(0, 6).toUpperCase();
 }
 
-function isExpired(room: ScreenShareRoom, current: Date): boolean {
+function isExpired(room: ChatRoom, current: Date): boolean {
   return current.getTime() - room.updatedAt.getTime() > ROOM_TTL_MS;
 }
 
-export class ScreenShareStore {
-  private rooms = new Map<string, ScreenShareRoom>();
-  private listeners = new Map<string, Set<(event: ScreenShareEvent) => void>>();
+export class ChatStore {
+  private rooms = new Map<string, ChatRoom>();
+  private listeners = new Map<string, Set<(event: ChatEvent) => void>>();
 
-  private emit(code: string, event: ScreenShareEvent): void {
+  private emit(code: string, event: ChatEvent): void {
     const listeners = this.listeners.get(code);
     if (!listeners || listeners.size === 0) {
       return;
@@ -94,17 +88,11 @@ export class ScreenShareStore {
       if (room.closedAt || isExpired(room, current)) {
         this.rooms.delete(code);
         this.clearListeners(code);
-        continue;
-      }
-
-      if (room.frame && current.getTime() - room.frame.capturedAt.getTime() > FRAME_TTL_MS) {
-        room.frame = null;
-        this.emit(code, { type: "stopped" });
       }
     }
   }
 
-  private getOpenRoom(code: string): ScreenShareRoom | null {
+  private getOpenRoom(code: string): ChatRoom | null {
     this.cleanup();
     const room = this.rooms.get(code) ?? null;
     if (!room || room.closedAt) {
@@ -117,7 +105,7 @@ export class ScreenShareStore {
     this.cleanup();
     const code = createCode(new Set(this.rooms.keys()));
     const createdAt = now();
-    const room: ScreenShareRoom = {
+    const room: ChatRoom = {
       code,
       networkId,
       hostDeviceId,
@@ -136,7 +124,7 @@ export class ScreenShareStore {
           },
         ],
       ]),
-      frame: null,
+      messages: [],
     };
     this.rooms.set(code, room);
     return room;
@@ -151,8 +139,8 @@ export class ScreenShareStore {
       return { error: "Room is only available on the creator's network" as const };
     }
 
-    const role = room.hostDeviceId === deviceId ? "host" : "viewer";
-    const participant: ScreenShareParticipant = {
+    const role = room.hostDeviceId === deviceId ? "host" : "member";
+    const participant: ChatParticipant = {
       deviceId,
       label,
       role,
@@ -174,9 +162,6 @@ export class ScreenShareStore {
     }
 
     room.participants.delete(deviceId);
-    if (deviceId === room.hostDeviceId) {
-      room.frame = null;
-    }
     room.updatedAt = now();
     return { room };
   }
@@ -202,7 +187,7 @@ export class ScreenShareStore {
     code: string,
     networkId: string,
     deviceId: string,
-  ): { error: string } | { room: ScreenShareRoom; participant: ScreenShareParticipant } {
+  ): { error: string } | { room: ChatRoom; participant: ChatParticipant } {
     const room = this.getOpenRoom(code);
     if (!room) {
       return { error: "Room not found" as const };
@@ -219,48 +204,36 @@ export class ScreenShareStore {
     return { room, participant };
   }
 
-  updateFrame(code: string, networkId: string, deviceId: string, imageBuffer: Buffer, mimeType: string, width: number, height: number) {
+  sendMessage(code: string, networkId: string, deviceId: string, text: string) {
     const touched = this.touchRoom(code, networkId, deviceId);
     if ("error" in touched) {
       return touched;
     }
-    if (touched.room.hostDeviceId !== deviceId) {
-      return { error: "Only the room creator can share a screen" as const };
-    }
 
-    const nextSequence = (touched.room.frame?.sequence ?? 0) + 1;
-    touched.room.frame = {
-      imageBuffer,
-      mimeType,
-      width,
-      height,
-      capturedAt: now(),
-      sequence: nextSequence,
+    const message: ChatMessage = {
+      id: crypto.randomBytes(8).toString("hex"),
+      deviceId,
+      label: touched.participant.label,
+      text,
+      sentAt: now(),
     };
+
+    touched.room.messages.push(message);
+    if (touched.room.messages.length > MAX_MESSAGES_PER_ROOM) {
+      touched.room.messages.splice(0, touched.room.messages.length - MAX_MESSAGES_PER_ROOM);
+    }
     touched.room.updatedAt = now();
-    this.emit(code, {
-      type: "frame",
-      sequence: nextSequence,
-      capturedAt: touched.room.frame.capturedAt.toISOString(),
-      width,
-      height,
-    });
-    return { room: touched.room, frame: touched.room.frame };
+    this.emit(code, { type: "message", message });
+    return { room: touched.room, message };
   }
 
-  clearFrame(code: string, networkId: string, deviceId: string) {
+  getMessages(code: string, networkId: string, deviceId: string) {
     const touched = this.touchRoom(code, networkId, deviceId);
     if ("error" in touched) {
       return touched;
     }
-    if (touched.room.hostDeviceId !== deviceId) {
-      return { error: "Only the room creator can stop sharing" as const };
-    }
 
-    touched.room.frame = null;
-    touched.room.updatedAt = now();
-    this.emit(code, { type: "stopped" });
-    return { room: touched.room };
+    return { room: touched.room, participant: touched.participant, messages: touched.room.messages };
   }
 
   getRoomStatus(code: string, networkId: string, deviceId: string) {
@@ -287,20 +260,7 @@ export class ScreenShareStore {
     };
   }
 
-  getFrame(code: string, networkId: string, deviceId: string) {
-    const touched = this.touchRoom(code, networkId, deviceId);
-    if ("error" in touched) {
-      return touched;
-    }
-
-    return {
-      room: touched.room,
-      participant: touched.participant,
-      frame: touched.room.frame,
-    };
-  }
-
-  subscribe(code: string, networkId: string, deviceId: string, listener: (event: ScreenShareEvent) => void) {
+  subscribe(code: string, networkId: string, deviceId: string, listener: (event: ChatEvent) => void) {
     const touched = this.touchRoom(code, networkId, deviceId);
     if ("error" in touched) {
       return touched;
@@ -332,4 +292,4 @@ export class ScreenShareStore {
   }
 }
 
-export const screenShareStore = new ScreenShareStore();
+export const chatStore = new ChatStore();

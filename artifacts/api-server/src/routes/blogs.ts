@@ -3,31 +3,10 @@ import { db, blogsTable } from "@workspace/db";
 import { CreateBlogBody, ListBlogsResponse, DeleteBlogParams } from "@workspace/api-zod";
 import { desc, eq } from "drizzle-orm";
 import { newId } from "../lib/room";
-import { defaultBlogPosts } from "../lib/blog-defaults";
 
 const router: IRouter = Router();
 
-async function ensureSeedBlogs(): Promise<void> {
-  const existing = await db.select({ id: blogsTable.id }).from(blogsTable).limit(1);
-  if (existing.length > 0) {
-    return;
-  }
-
-  await db.insert(blogsTable).values(
-    defaultBlogPosts.map((post) => ({
-      id: post.id,
-      title: post.title,
-      excerpt: post.excerpt,
-      content: post.content,
-      imageDataUrl: post.imageDataUrl,
-      publishedAt: post.publishedAt,
-      createdAt: post.publishedAt,
-    })),
-  );
-}
-
 router.get("/blogs", async (_req, res) => {
-  await ensureSeedBlogs();
   const rows = await db.select().from(blogsTable).orderBy(desc(blogsTable.publishedAt));
   const data = ListBlogsResponse.parse(
     rows.map((row) => ({

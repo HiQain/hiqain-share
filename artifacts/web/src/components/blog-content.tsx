@@ -43,7 +43,7 @@ export function BlogContent({ content, className }: BlogContentProps) {
   return (
     <div
       className={cn(
-        "prose prose-invert max-w-none",
+        "prose max-w-none dark:prose-invert",
         "prose-headings:font-semibold prose-headings:tracking-tight",
         "prose-p:text-muted-foreground prose-li:text-muted-foreground",
         "prose-strong:text-foreground prose-a:text-primary",

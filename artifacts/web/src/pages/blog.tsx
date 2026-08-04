@@ -1,5 +1,6 @@
 import { useListBlogs } from "@workspace/api-client-react";
 import { Link } from "wouter";
+import { ArrowRight, ImageOff } from "lucide-react";
 import type { BlogPost } from "@/lib/blog-store";
 
 function formatBlogDate(publishedAt: string): string {
@@ -15,7 +16,7 @@ export function Blog() {
 
   return (
     <div className="py-16 md:py-24">
-      <div className="container mx-auto px-4 max-w-5xl">
+      <div className="container mx-auto max-w-7xl px-4">
         <div className="mb-12">
           <h1 className="text-4xl font-bold tracking-tight mb-4">Blog</h1>
           <p className="text-lg text-muted-foreground max-w-2xl">
@@ -24,28 +25,48 @@ export function Blog() {
           </p>
         </div>
 
-        <div className="grid gap-6">
-          {(posts as BlogPost[]).map((post) => (
-            <article
-              key={post.id}
-              className="rounded-2xl border border-border bg-card p-6 md:p-8 shadow-sm"
-            >
-              {post.imageDataUrl && (
-                <img
-                  src={post.imageDataUrl}
-                  alt={post.title}
-                  className="mb-5 h-56 w-full rounded-xl object-cover"
-                />
-              )}
-              <p className="mb-3 text-sm text-muted-foreground">{formatBlogDate(post.publishedAt)}</p>
-              <h2 className="mb-3 text-2xl font-semibold">{post.title}</h2>
-              <p className="text-muted-foreground">{post.excerpt}</p>
-              <Link href={`/blog/${post.id}`} className="mt-5 inline-flex text-sm font-medium text-primary hover:underline">
-                Read full article
+        {(posts as BlogPost[]).length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-16 text-center">
+            <p className="font-medium">No blog posts yet</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {(posts as BlogPost[]).map((post) => (
+              <Link
+                key={post.id}
+                href={`/blog/${post.id}`}
+                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md"
+              >
+                <div className="aspect-[16/10] w-full overflow-hidden bg-muted">
+                  {post.imageDataUrl ? (
+                    <img
+                      src={post.imageDataUrl}
+                      alt={post.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <ImageOff className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {formatBlogDate(post.publishedAt)}
+                  </p>
+                  <h2 className="mb-2 line-clamp-2 text-lg font-semibold leading-snug text-foreground">
+                    {post.title}
+                  </h2>
+                  <p className="mb-4 line-clamp-3 flex-1 text-sm text-muted-foreground">{post.excerpt}</p>
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                    Read article
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </div>
               </Link>
-            </article>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

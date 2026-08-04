@@ -17,21 +17,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertTriangle,
-  Clock3,
   Copy,
   Download,
+  ExternalLink,
   FileArchive,
   FileAudio,
   FileIcon,
   FileText,
   FileVideo,
   Image as ImageIcon,
+  Link2,
   Loader2,
   Lock,
   Maximize,
+  MessageCircle,
   Monitor,
-  RefreshCw,
   Save,
+  Send,
   Trash2,
   Type,
   UploadCloud,
@@ -42,6 +44,8 @@ import {
 
 const POLL_INTERVAL = 3000;
 const SCREEN_STATUS_POLL_MS = 5000;
+const CHAT_STATUS_POLL_MS = 6000;
+const MAX_CHAT_MESSAGE_LENGTH = 2000;
 const SCREEN_CAPTURE_INTERVAL_MS = 450;
 const MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = "1GB";
@@ -102,33 +106,77 @@ type ScreenFrame = {
 type ScreenFrameResponse = {
   code: string;
   frame:
-    | {
-        imageDataUrl: string;
-        width: number;
-        height: number;
-        sequence: number;
-        capturedAt: string;
-      }
-    | null;
+  | {
+    imageDataUrl: string;
+    width: number;
+    height: number;
+    sequence: number;
+    capturedAt: string;
+  }
+  | null;
 };
 
 type ScreenShareEvent =
   | {
-      type: "frame";
-      sequence: number;
-      capturedAt: string;
-      width: number;
-      height: number;
-    }
+    type: "frame";
+    sequence: number;
+    capturedAt: string;
+    width: number;
+    height: number;
+  }
   | {
-      type: "stopped";
-    }
+    type: "stopped";
+  }
   | {
-      type: "closed";
-    }
+    type: "closed";
+  }
   | {
-      type: "ready";
-    };
+    type: "ready";
+  };
+
+type ChatParticipant = {
+  deviceId: string;
+  label: string;
+  role: "host" | "member";
+  isCurrent: boolean;
+  lastSeen: string;
+};
+
+type ChatRoomStatus = {
+  code: string;
+  role: "host" | "member";
+  hostLabel: string;
+  isHostPresent: boolean;
+  memberCount: number;
+  participantCount: number;
+  participants: ChatParticipant[];
+  createdAt: string;
+};
+
+type ChatMessage = {
+  id: string;
+  deviceId: string;
+  label: string;
+  text: string;
+  sentAt: string;
+};
+
+type ChatMessagesResponse = {
+  code: string;
+  messages: ChatMessage[];
+};
+
+type ChatEvent =
+  | {
+    type: "message";
+    message: ChatMessage;
+  }
+  | {
+    type: "closed";
+  }
+  | {
+    type: "ready";
+  };
 
 const isImageMime = (mime: string) => mime.toLowerCase().startsWith("image/");
 const isVideoMime = (mime: string) => mime.toLowerCase().startsWith("video/");
@@ -163,6 +211,19 @@ function getFileFormatLabel(fileName: string, mimeType: string) {
 
   const mimePart = mimeType.split("/")[1]?.split(/[+;]/)[0]?.trim();
   return mimePart ? mimePart.toUpperCase() : "FILE";
+}
+
+function extractFirstUrl(text: string): string | null {
+  const match = text.match(/https?:\/\/[^\s]+/i);
+  return match ? match[0].replace(/[.,;:!?)\]]+$/, "") : null;
+}
+
+function getDisplayHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 function createPreviewUrl(file: File) {
@@ -270,14 +331,6 @@ async function apiRequest<T>(input: string, init?: RequestInit, expectJson = tru
   }
 
   return (expectJson ? (data as T) : (undefined as T));
-}
-
-function formatBoardCountdown(remainingMs: number) {
-  const safeMs = Math.max(0, remainingMs);
-  const totalSeconds = Math.floor(safeMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function copyTextToClipboard(value: string) {
@@ -423,7 +476,7 @@ function RemoteFileThumbnail({ file }: { file: BoardFileItem }) {
 export function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: board, isLoading: isBoardLoading, refetch: refetchBoard } = useGetBoard({
+  const { data: board, isLoading: isBoardLoading } = useGetBoard({
     query: { queryKey: getGetBoardQueryKey(), refetchInterval: POLL_INTERVAL },
   });
 
@@ -431,7 +484,7 @@ export function Home() {
   const clearText = useClearText();
   const deleteFile = useDeleteFile();
 
-  const [activeView, setActiveView] = useState<"board" | "screen">("board");
+  const [activeView, setActiveView] = useState<"board" | "private">("board");
   const [boardTab, setBoardTab] = useState<"text" | "files">("text");
   const [textContent, setTextContent] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -445,8 +498,14 @@ export function Home() {
   const [isScreenActionPending, setIsScreenActionPending] = useState(false);
   const [isStartingShare, setIsStartingShare] = useState(false);
   const [isStoppingShare, setIsStoppingShare] = useState(false);
-  const [countdownNow, setCountdownNow] = useState(() => Date.now());
-  const [boardExpiryMs, setBoardExpiryMs] = useState(() => Date.now() + (30 * 60 * 1000));
+
+  const [chatRoomCodeInput, setChatRoomCodeInput] = useState("");
+  const [chatRoom, setChatRoom] = useState<ChatRoomStatus | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatMessageInput, setChatMessageInput] = useState("");
+  const [chatNotice, setChatNotice] = useState<string | null>(null);
+  const [isChatActionPending, setIsChatActionPending] = useState(false);
+  const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const latestFrameSequenceRef = useRef(0);
@@ -458,6 +517,8 @@ export function Home() {
   const screenPreviewRef = useRef<HTMLDivElement | null>(null);
   const screenEventsRef = useRef<EventSource | null>(null);
   const localFrameSequenceRef = useRef(0);
+  const chatEventsRef = useRef<EventSource | null>(null);
+  const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const replaceLatestFrame = (nextFrame: ScreenFrame | null) => {
     setLatestFrame((current) => {
@@ -482,28 +543,12 @@ export function Home() {
   }, [latestFrame]);
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setCountdownNow(Date.now());
-    }, 1000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (board?.text?.expiresAt) {
-      setBoardExpiryMs(new Date(board.text.expiresAt).getTime());
-      return;
-    }
-
-    setBoardExpiryMs(Date.now() + ((board?.expiresInMinutes ?? 30) * 60 * 1000));
-  }, [board?.text?.expiresAt, board?.expiresInMinutes]);
-
-  useEffect(() => {
     return () => {
       if (screenEventsRef.current) {
         screenEventsRef.current.close();
+      }
+      if (chatEventsRef.current) {
+        chatEventsRef.current.close();
       }
       if (captureIntervalRef.current !== null) {
         window.clearInterval(captureIntervalRef.current);
@@ -566,13 +611,13 @@ export function Home() {
         replaceLatestFrame(
           frameResponse.frame
             ? {
-                imageUrl: frameResponse.frame.imageDataUrl,
-                width: frameResponse.frame.width,
-                height: frameResponse.frame.height,
-                sequence: frameResponse.frame.sequence,
-                capturedAt: frameResponse.frame.capturedAt,
-                localObjectUrl: false,
-              }
+              imageUrl: frameResponse.frame.imageDataUrl,
+              width: frameResponse.frame.width,
+              height: frameResponse.frame.height,
+              sequence: frameResponse.frame.sequence,
+              capturedAt: frameResponse.frame.capturedAt,
+              localObjectUrl: false,
+            }
             : null,
         );
       }
@@ -621,11 +666,11 @@ export function Home() {
         setScreenRoom((current) =>
           current
             ? {
-                ...current,
-                isSharing: true,
-                frameSequence: payload.sequence,
-                frameCapturedAt: payload.capturedAt,
-              }
+              ...current,
+              isSharing: true,
+              frameSequence: payload.sequence,
+              frameCapturedAt: payload.capturedAt,
+            }
             : current,
         );
 
@@ -648,10 +693,10 @@ export function Home() {
         setScreenRoom((current) =>
           current
             ? {
-                ...current,
-                isSharing: false,
-                frameCapturedAt: null,
-              }
+              ...current,
+              isSharing: false,
+              frameCapturedAt: null,
+            }
             : current,
         );
         return;
@@ -676,6 +721,204 @@ export function Home() {
       }
     };
   }, [screenRoom?.code, screenRoom?.role]);
+
+  const appendChatMessage = (message: ChatMessage) => {
+    setChatMessages((current) => (current.some((existing) => existing.id === message.id) ? current : [...current, message]));
+  };
+
+  const refreshChatRoom = async (codeOverride?: string) => {
+    const code = codeOverride ?? chatRoom?.code;
+    if (!code) {
+      return;
+    }
+
+    try {
+      const nextRoom = await apiRequest<ChatRoomStatus>(`/api/chat/rooms/${code}/status`);
+      setChatRoom(nextRoom);
+    } catch (error) {
+      if (chatEventsRef.current) {
+        chatEventsRef.current.close();
+        chatEventsRef.current = null;
+      }
+      setChatRoom(null);
+      setChatMessages([]);
+      setChatNotice(error instanceof Error ? error.message : "Chat room is no longer available.");
+    }
+  };
+
+  useEffect(() => {
+    if (chatMessagesEndRef.current) {
+      chatMessagesEndRef.current.scrollIntoView({ block: "end" });
+    }
+  }, [chatMessages]);
+
+  useEffect(() => {
+    if (!chatRoom?.code) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshChatRoom(chatRoom.code);
+    }, CHAT_STATUS_POLL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [chatRoom?.code]);
+
+  useEffect(() => {
+    if (!chatRoom?.code) {
+      if (chatEventsRef.current) {
+        chatEventsRef.current.close();
+        chatEventsRef.current = null;
+      }
+      return;
+    }
+
+    const events = new EventSource(`/api/chat/rooms/${chatRoom.code}/events`);
+    chatEventsRef.current = events;
+
+    events.onmessage = (message) => {
+      const payload = JSON.parse(message.data) as ChatEvent;
+
+      if (payload.type === "ready") {
+        return;
+      }
+
+      if (payload.type === "message") {
+        appendChatMessage(payload.message);
+        return;
+      }
+
+      setChatRoom(null);
+      setChatMessages([]);
+      setChatNotice("Chat room was closed.");
+    };
+
+    events.onerror = () => {
+      if (events.readyState === EventSource.CLOSED) {
+        chatEventsRef.current = null;
+      }
+    };
+
+    return () => {
+      events.close();
+      if (chatEventsRef.current === events) {
+        chatEventsRef.current = null;
+      }
+    };
+  }, [chatRoom?.code]);
+
+  const handleCreateChatRoom = async () => {
+    try {
+      setIsChatActionPending(true);
+      setChatNotice(null);
+      setScreenMessage(null);
+      setScreenRoom(null);
+      replaceLatestFrame(null);
+      localFrameSequenceRef.current = 0;
+      const room = await apiRequest<ChatRoomStatus>("/api/chat/rooms", { method: "POST" });
+      setChatRoom(room);
+      setChatMessages([]);
+      setChatRoomCodeInput(room.code);
+      toast({ title: "Chat room created", description: `Room code: ${room.code}` });
+    } catch (error) {
+      setChatNotice(error instanceof Error ? error.message : "Could not create room.");
+    } finally {
+      setIsChatActionPending(false);
+    }
+  };
+
+  const handleJoinChatRoom = async (codeOverride?: string) => {
+    const code = (codeOverride ?? roomCodeInput ?? chatRoomCodeInput).trim().toUpperCase();
+    if (!code) {
+      setChatNotice("Enter a room code first.");
+      return;
+    }
+
+    try {
+      setIsChatActionPending(true);
+      setChatNotice(null);
+      setScreenMessage(null);
+      setScreenRoom(null);
+      replaceLatestFrame(null);
+      localFrameSequenceRef.current = 0;
+      const room = await apiRequest<ChatRoomStatus>("/api/chat/rooms/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      setChatRoom(room);
+      setRoomCodeInput(room.code);
+      setChatRoomCodeInput(room.code);
+      const history = await apiRequest<ChatMessagesResponse>(`/api/chat/rooms/${room.code}/messages`);
+      setChatMessages(history.messages);
+      toast({ title: "Joined room", description: `Connected to ${room.code}` });
+    } catch (error) {
+      setChatNotice(error instanceof Error ? error.message : "Could not join room.");
+    } finally {
+      setIsChatActionPending(false);
+    }
+  };
+
+  const handleLeaveChatRoom = async () => {
+    if (!chatRoom) {
+      return;
+    }
+
+    try {
+      setIsChatActionPending(true);
+      await apiRequest(`/api/chat/rooms/${chatRoom.code}/leave`, { method: "POST" }, false);
+      setChatRoom(null);
+      setChatMessages([]);
+      setChatNotice("You left the room.");
+    } catch (error) {
+      setChatNotice(error instanceof Error ? error.message : "Could not leave the room.");
+    } finally {
+      setIsChatActionPending(false);
+    }
+  };
+
+  const handleCloseChatRoom = async () => {
+    if (!chatRoom) {
+      return;
+    }
+
+    try {
+      setIsChatActionPending(true);
+      await apiRequest(`/api/chat/rooms/${chatRoom.code}/close`, { method: "POST" }, false);
+      setChatRoom(null);
+      setChatMessages([]);
+      setChatNotice("Room closed.");
+      toast({ title: "Room closed" });
+    } catch (error) {
+      setChatNotice(error instanceof Error ? error.message : "Could not close the room.");
+    } finally {
+      setIsChatActionPending(false);
+    }
+  };
+
+  const handleSendChatMessage = async () => {
+    const text = chatMessageInput.trim();
+    if (!chatRoom || !text) {
+      return;
+    }
+
+    try {
+      setIsSendingChatMessage(true);
+      const message = await apiRequest<ChatMessage>(`/api/chat/rooms/${chatRoom.code}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      appendChatMessage(message);
+      setChatMessageInput("");
+    } catch (error) {
+      setChatNotice(error instanceof Error ? error.message : "Could not send message.");
+    } finally {
+      setIsSendingChatMessage(false);
+    }
+  };
 
   const handleSaveText = () => {
     if (!textContent.trim()) return;
@@ -851,6 +1094,9 @@ export function Home() {
     try {
       setIsScreenActionPending(true);
       setScreenMessage(null);
+      setChatNotice(null);
+      setChatRoom(null);
+      setChatMessages([]);
       const room = await apiRequest<ScreenRoomStatus>("/api/screen-share/rooms", {
         method: "POST",
       });
@@ -876,6 +1122,9 @@ export function Home() {
     try {
       setIsScreenActionPending(true);
       setScreenMessage(null);
+      setChatNotice(null);
+      setChatRoom(null);
+      setChatMessages([]);
       const room = await apiRequest<ScreenRoomStatus>("/api/screen-share/rooms/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -883,12 +1132,71 @@ export function Home() {
       });
       setScreenRoom(room);
       setRoomCodeInput(room.code);
+      setChatRoomCodeInput(room.code);
       await refreshScreenRoom(room.code);
       toast({ title: "Joined room", description: `Connected to ${room.code}` });
     } catch (error) {
       setScreenMessage(error instanceof Error ? error.message : "Could not join room.");
     } finally {
       setIsScreenActionPending(false);
+    }
+  };
+
+  const handleJoinPrivateRoom = async () => {
+    const code = roomCodeInput.trim().toUpperCase();
+    if (!code) {
+      setScreenMessage("Enter a room code first.");
+      setChatNotice(null);
+      return;
+    }
+
+    setRoomCodeInput(code);
+    setChatRoomCodeInput(code);
+    setScreenMessage(null);
+    setChatNotice(null);
+    setIsScreenActionPending(true);
+    setIsChatActionPending(true);
+
+    try {
+      setChatRoom(null);
+      setChatMessages([]);
+      const room = await apiRequest<ScreenRoomStatus>("/api/screen-share/rooms/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      setScreenRoom(room);
+      setRoomCodeInput(room.code);
+      setChatRoomCodeInput(room.code);
+      await refreshScreenRoom(room.code);
+      toast({ title: "Joined room", description: `Connected to ${room.code}` });
+      setIsChatActionPending(false);
+      return;
+    } catch {
+      setScreenMessage(null);
+    } finally {
+      setIsScreenActionPending(false);
+    }
+
+    try {
+      setScreenRoom(null);
+      replaceLatestFrame(null);
+      localFrameSequenceRef.current = 0;
+      const room = await apiRequest<ChatRoomStatus>("/api/chat/rooms/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      setChatRoom(room);
+      setRoomCodeInput(room.code);
+      setChatRoomCodeInput(room.code);
+      const history = await apiRequest<ChatMessagesResponse>(`/api/chat/rooms/${room.code}/messages`);
+      setChatMessages(history.messages);
+      toast({ title: "Joined room", description: `Connected to ${room.code}` });
+    } catch (error) {
+      setChatNotice(error instanceof Error ? error.message : "Could not join room.");
+    } finally {
+      setIsChatActionPending(false);
     }
   };
 
@@ -1101,57 +1409,35 @@ export function Home() {
   };
 
   const isSharingLocally = captureStreamRef.current !== null && captureIntervalRef.current !== null;
-  const boardCountdownLabel = formatBoardCountdown(boardExpiryMs - countdownNow);
+  const isPrivateRoomIdle = !screenRoom && !chatRoom;
+  const detectedUrl = extractFirstUrl(textContent);
 
   return (
     <div className="min-h-full bg-background">
       <div className="mx-auto flex max-w-[900px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="inline-flex w-full max-w-[440px] rounded-full border border-border bg-card p-0.5 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setActiveView("board")}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-0 py-2 text-sm font-medium transition ${activeView === "board"
-                ? "bg-background text-foreground shadow-sm ring-2 ring-primary"
-                : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <Wifi className="h-4 w-4" />
-              Network Board
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView("screen")}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-0 py-2 text-sm font-medium transition ${activeView === "screen"
-                ? "bg-background text-foreground shadow-sm ring-2 ring-primary"
-                : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <Lock className="h-4 w-4" />
-              Screen Share
-            </button>
-          </div>
-
-          <div className="flex items-center gap-4 self-end lg:self-auto">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-2 text-base font-medium text-foreground">
-              <Clock3 className="h-4 w-4" />
-              Board clears in <span className="notranslate">{boardCountdownLabel}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                void refetchBoard();
-                if (screenRoom?.code) {
-                  void refreshScreenRoom(screenRoom.code);
-                }
-              }}
-              className="rounded-full p-2.5 text-foreground transition hover:bg-muted"
-              aria-label="Refresh content"
-              title="Refresh"
-            >
-              <RefreshCw className="h-5 w-5" />
-            </button>
-          </div>
+        <div className="flex w-full rounded-xl border border-border bg-card p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setActiveView("board")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-0 py-2 text-sm font-medium transition ${activeView === "board"
+              ? "bg-background text-foreground shadow-sm ring-2 ring-primary"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
+          >
+            <Wifi className="h-4 w-4" />
+            Network Share
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView("private")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-0 py-2 text-sm font-medium transition ${activeView === "private"
+              ? "bg-background text-foreground shadow-sm ring-2 ring-primary"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
+          >
+            <Lock className="h-4 w-4" />
+            Private Share
+          </button>
         </div>
 
         {activeView === "board" && (
@@ -1199,6 +1485,26 @@ export function Home() {
                         onChange={(event) => setTextContent(event.target.value)}
                       />
                     </div>
+
+                    {detectedUrl && (
+                      <a
+                        href={detectedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="notranslate group flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 transition-colors hover:border-primary/50 hover:bg-primary/10"
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Link2 className="h-4.5 w-4.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-foreground">
+                            {getDisplayHost(detectedUrl)}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">{detectedUrl}</span>
+                        </span>
+                        <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                      </a>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-3">
                       <Button onClick={handleSaveText} disabled={saveText.isPending || !textContent.trim()}>
@@ -1347,29 +1653,42 @@ export function Home() {
           </>
         )}
 
-        {activeView === "screen" && (
+        {activeView === "private" && (
           <Card className="border-primary/20 shadow-sm">
             <CardContent className="space-y-5 p-4 sm:p-6">
-              {!screenRoom && (
+              {isPrivateRoomIdle && (
                 <>
-                  <div className="rounded-xl border bg-card p-3.5 sm:p-4">
-                    <div className="mb-3 flex items-start gap-3">
+                  <div className="rounded-xl border bg-card p-4 sm:p-5">
+                    <div className="mb-4 flex items-start gap-3">
                       <div className="rounded-lg bg-primary/10 p-2 text-primary">
                         <Lock className="h-4.5 w-4.5" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Create Private Room</h2>
-                        <p className="mt-0.5 text-xs text-muted-foreground">Room code generate hoga aur sirf same network par work karega.</p>
+                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Create Private Share</h2>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Create a room for secure screen sharing or real-time chat on the same network.
+                        </p>
                       </div>
                     </div>
-                    <Button
-                      className="h-10 w-full rounded-lg text-sm font-semibold"
-                      onClick={() => void handleCreateRoom()}
-                      disabled={isScreenActionPending}
-                    >
-                      {isScreenActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
-                      Create New Room
-                    </Button>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Button
+                        className="h-11 rounded-lg text-sm font-semibold"
+                        onClick={() => void handleCreateRoom()}
+                        disabled={isScreenActionPending || isChatActionPending}
+                      >
+                        {isScreenActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Monitor className="mr-2 h-4 w-4" />}
+                        Create Private Share For Screen Share
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        className="h-11 rounded-lg text-sm font-semibold"
+                        onClick={() => void handleCreateChatRoom()}
+                        disabled={isScreenActionPending || isChatActionPending}
+                      >
+                        {isChatActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                        Create Private Share For Chat
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="rounded-xl border bg-card p-3.5 sm:p-4">
@@ -1379,24 +1698,37 @@ export function Home() {
                       </div>
                       <div>
                         <h2 className="text-lg font-semibold tracking-tight text-foreground">Join Existing Room</h2>
-                        <p className="mt-0.5 text-xs text-muted-foreground">Neeche room code enter karke live screen dekh sakte ho.</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Enter the room code below to join an existing screen share or chat room.
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-2.5 lg:flex-row">
+                    <div className="flex flex-col gap-2.5">
                       <input
                         value={roomCodeInput}
-                        onChange={(event) => setRoomCodeInput(event.target.value.toUpperCase())}
-                        placeholder="ENTER ROOM CODE"
-                        className="h-10 flex-1 rounded-lg border border-input bg-background px-3.5 text-center font-mono text-sm tracking-[0.18em] text-foreground outline-none transition focus:border-primary"
+                        onChange={(event) => {
+                          const value = event.target.value.toUpperCase();
+                          setRoomCodeInput(value);
+                          setChatRoomCodeInput(value);
+                        }}
+                        type="text"
+                        inputMode="text"
+                        autoCapitalize="characters"
+                        autoCorrect="off"
+                        autoComplete="off"
+                        spellCheck={false}
+                        maxLength={12}
+                        placeholder="Enter room code"
+                        className="h-14 flex-1 rounded-lg border border-input bg-background px-5 py-3 text-center font-mono text-base uppercase tracking-[0.2em] text-foreground outline-none transition placeholder:normal-case placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary"
                       />
                       <Button
                         variant="secondary"
                         className="h-10 rounded-lg px-5 text-sm font-semibold"
-                        onClick={() => void handleJoinRoom()}
-                        disabled={isScreenActionPending}
+                        onClick={() => void handleJoinPrivateRoom()}
+                        disabled={isScreenActionPending || isChatActionPending}
                       >
-                        {isScreenActionPending ? "Joining..." : "Join"}
+                        {isScreenActionPending || isChatActionPending ? "Joining..." : "Join"}
                       </Button>
                     </div>
                   </div>
@@ -1516,7 +1848,7 @@ export function Home() {
                               <p className="mt-1.5 text-xs text-slate-400">
                                 {screenRoom.role === "host"
                                   ? "Browser will ask which screen or window to share."
-                                  : "Jaise hi creator share start karega, preview auto update ho jayegi."}
+                                  : "The preview will update automatically as soon as the creator starts sharing."}
                               </p>
                             </div>
                           </div>
@@ -1571,6 +1903,116 @@ export function Home() {
               {screenMessage && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   {screenMessage}
+                </div>
+              )}
+              {chatRoom && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3 rounded-xl border bg-card p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Badge className="rounded-full bg-teal-50 px-4 py-1 text-sm font-semibold text-teal-700 hover:bg-teal-50">
+                          Room <span className="notranslate">{chatRoom.code}</span>
+                        </Badge>
+                        <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
+                          {chatRoom.role === "host" ? "Creator" : "Member"}
+                        </Badge>
+                      </div>
+                      <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-foreground">
+                        {chatRoom.participantCount} {chatRoom.participantCount === 1 ? "person" : "people"} in this room
+                      </h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Messages are visible to everyone connected to this room on the same network.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        className="h-8 px-2.5 text-xs"
+                        onClick={() => {
+                          void copyTextToClipboard(chatRoom.code);
+                          toast({ title: "Room code copied" });
+                        }}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy code
+                      </Button>
+                      <Button variant="outline" className="h-8 px-2.5 text-xs" onClick={() => void handleLeaveChatRoom()} disabled={isChatActionPending}>
+                        <X className="mr-2 h-4 w-4" />
+                        Leave
+                      </Button>
+                      {chatRoom.role === "host" && (
+                        <Button
+                          variant="destructive"
+                          className="h-8 px-2.5 text-xs"
+                          onClick={() => void handleCloseChatRoom()}
+                          disabled={isChatActionPending}
+                        >
+                          Close room
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border bg-card">
+                    <div className="flex h-[420px] flex-col gap-3 overflow-y-auto p-4">
+                      {chatMessages.length === 0 ? (
+                        <div className="flex flex-1 items-center justify-center text-center text-sm text-muted-foreground">
+                          No messages yet. Say hello!
+                        </div>
+                      ) : (
+                        chatMessages.map((message) => {
+                          const isOwn = message.deviceId === chatRoom.participants.find((participant) => participant.isCurrent)?.deviceId;
+                          return (
+                            <div key={message.id} className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                              <span className="mb-1 px-1 text-[11px] font-medium text-muted-foreground">
+                                {isOwn ? "You" : <span className="notranslate">{message.label}</span>}
+                              </span>
+                              <div
+                                className={`notranslate max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm ${isOwn
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-foreground"
+                                  }`}
+                              >
+                                {message.text}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div ref={chatMessagesEndRef} />
+                    </div>
+
+                    <div className="flex items-center gap-2 border-t p-3">
+                      <input
+                        value={chatMessageInput}
+                        onChange={(event) => setChatMessageInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault();
+                            void handleSendChatMessage();
+                          }
+                        }}
+                        placeholder="Type a message..."
+                        maxLength={MAX_CHAT_MESSAGE_LENGTH}
+                        className="h-10 flex-1 rounded-lg border border-input bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-primary"
+                      />
+                      <Button
+                        size="icon"
+                        className="h-10 w-10 shrink-0 rounded-lg"
+                        onClick={() => void handleSendChatMessage()}
+                        disabled={isSendingChatMessage || !chatMessageInput.trim()}
+                      >
+                        {isSendingChatMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {chatNotice && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  {chatNotice}
                 </div>
               )}
             </CardContent>

@@ -1,26 +1,8 @@
-import express, { Router, type IRouter, type Request, type Response } from "express";
-import { deviceLabelFor, getDeviceId, getRoomId } from "../lib/room";
+import express, { Router, type IRouter, type Request } from "express";
+import { getRequestDevice } from "../lib/room";
 import { screenShareStore } from "../lib/screen-share-store";
 
 const router: IRouter = Router();
-
-function getScreenDevice(req: Request, res: Response) {
-  let deviceId: string = (req as Request & { cookies?: Record<string, string> }).cookies?.["qs_did"] ?? "";
-  if (!/^[a-f0-9]{16}$/.test(deviceId)) {
-    deviceId = getDeviceId(req);
-    res.cookie("qs_did", deviceId, {
-      httpOnly: false,
-      sameSite: "lax",
-      maxAge: 1000 * 60 * 60 * 24 * 365,
-    });
-  }
-
-  return {
-    deviceId,
-    label: deviceLabelFor(deviceId),
-    networkId: getRoomId(req),
-  };
-}
 
 function serializeStatus(result: ReturnType<typeof screenShareStore.getRoomStatus>) {
   if ("error" in result) {
@@ -95,7 +77,7 @@ function parseFrameHeaders(req: Request): { width: number; height: number; mimeT
 }
 
 router.post("/screen-share/rooms", (req, res) => {
-  const { deviceId, label, networkId } = getScreenDevice(req, res);
+  const { deviceId, label, networkId } = getRequestDevice(req, res);
   const room = screenShareStore.createRoom(networkId, deviceId, label);
   const status = screenShareStore.getRoomStatus(room.code, networkId, deviceId);
   res.status(201).json(serializeStatus(status));
@@ -103,7 +85,7 @@ router.post("/screen-share/rooms", (req, res) => {
 
 router.post("/screen-share/rooms/join", (req, res) => {
   const body = parseJoinRoomBody(req.body);
-  const { deviceId, label, networkId } = getScreenDevice(req, res);
+  const { deviceId, label, networkId } = getRequestDevice(req, res);
   const joined = screenShareStore.joinRoom(body.code, networkId, deviceId, label);
   if ("error" in joined) {
     res.status(404).json({ error: joined.error });
@@ -115,7 +97,7 @@ router.post("/screen-share/rooms/join", (req, res) => {
 });
 
 router.get("/screen-share/rooms/:code/status", (req, res) => {
-  const { deviceId, networkId } = getScreenDevice(req, res);
+  const { deviceId, networkId } = getRequestDevice(req, res);
   const status = screenShareStore.getRoomStatus(req.params["code"]!.trim().toUpperCase(), networkId, deviceId);
   if ("error" in status) {
     res.status(404).json({ error: status.error });
@@ -126,7 +108,7 @@ router.get("/screen-share/rooms/:code/status", (req, res) => {
 });
 
 router.get("/screen-share/rooms/:code/frame", (req, res) => {
-  const { deviceId, networkId } = getScreenDevice(req, res);
+  const { deviceId, networkId } = getRequestDevice(req, res);
   const result = screenShareStore.getFrame(req.params["code"]!.trim().toUpperCase(), networkId, deviceId);
   if ("error" in result) {
     res.status(404).json({ error: result.error });
@@ -162,7 +144,7 @@ router.get("/screen-share/rooms/:code/frame", (req, res) => {
 });
 
 router.get("/screen-share/rooms/:code/frame/image", (req, res) => {
-  const { deviceId, networkId } = getScreenDevice(req, res);
+  const { deviceId, networkId } = getRequestDevice(req, res);
   const result = screenShareStore.getFrame(req.params["code"]!.trim().toUpperCase(), networkId, deviceId);
   if ("error" in result) {
     res.status(404).json({ error: result.error });
@@ -180,7 +162,7 @@ router.get("/screen-share/rooms/:code/frame/image", (req, res) => {
 });
 
 router.get("/screen-share/rooms/:code/events", (req, res) => {
-  const { deviceId, networkId } = getScreenDevice(req, res);
+  const { deviceId, networkId } = getRequestDevice(req, res);
   const code = req.params["code"]!.trim().toUpperCase();
   const result = screenShareStore.subscribe(code, networkId, deviceId, (event) => {
     res.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -228,7 +210,7 @@ router.post("/screen-share/rooms/:code/frame", express.raw({ type: "image/*", li
     return;
   }
 
-  const { deviceId, networkId } = getScreenDevice(req, res);
+  const { deviceId, networkId } = getRequestDevice(req, res);
   const result = screenShareStore.updateFrame(
     req.params["code"]!.trim().toUpperCase(),
     networkId,
@@ -247,7 +229,7 @@ router.post("/screen-share/rooms/:code/frame", express.raw({ type: "image/*", li
 });
 
 router.post("/screen-share/rooms/:code/stop", (req, res) => {
-  const { deviceId, networkId } = getScreenDevice(req, res);
+  const { deviceId, networkId } = getRequestDevice(req, res);
   const result = screenShareStore.clearFrame(req.params["code"]!.trim().toUpperCase(), networkId, deviceId);
   if ("error" in result) {
     res.status(403).json({ error: result.error });
@@ -258,7 +240,7 @@ router.post("/screen-share/rooms/:code/stop", (req, res) => {
 });
 
 router.post("/screen-share/rooms/:code/leave", (req, res) => {
-  const { deviceId } = getScreenDevice(req, res);
+  const { deviceId } = getRequestDevice(req, res);
   const result = screenShareStore.leaveRoom(req.params["code"]!.trim().toUpperCase(), deviceId);
   if ("error" in result) {
     res.status(404).json({ error: result.error });
@@ -269,7 +251,7 @@ router.post("/screen-share/rooms/:code/leave", (req, res) => {
 });
 
 router.post("/screen-share/rooms/:code/close", (req, res) => {
-  const { deviceId } = getScreenDevice(req, res);
+  const { deviceId } = getRequestDevice(req, res);
   const result = screenShareStore.closeRoom(req.params["code"]!.trim().toUpperCase(), deviceId);
   if ("error" in result) {
     res.status(403).json({ error: result.error });
