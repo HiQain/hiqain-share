@@ -2,9 +2,34 @@ import { Router, type IRouter } from "express";
 import { db, blogsTable } from "@workspace/db";
 import { CreateBlogBody, ListBlogsResponse, DeleteBlogParams } from "@workspace/api-zod";
 import { desc, eq } from "drizzle-orm";
-import { newId } from "../lib/room";
 
 const router: IRouter = Router();
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return slug || "post";
+}
+
+async function generateUniqueSlug(title: string): Promise<string> {
+  const base = slugify(title);
+  let candidate = base;
+  let suffix = 2;
+
+  while (true) {
+    const existing = await db.select({ id: blogsTable.id }).from(blogsTable).where(eq(blogsTable.id, candidate)).limit(1);
+    if (existing.length === 0) {
+      return candidate;
+    }
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+}
 
 router.get("/blogs", async (_req, res) => {
   const rows = await db.select().from(blogsTable).orderBy(desc(blogsTable.publishedAt));
@@ -24,7 +49,7 @@ router.get("/blogs", async (_req, res) => {
 router.post("/blogs", async (req, res) => {
   const body = CreateBlogBody.parse(req.body);
   const createdAt = new Date();
-  const id = newId();
+  const id = await generateUniqueSlug(body.title.trim());
 
   await db.insert(blogsTable).values({
     id,
