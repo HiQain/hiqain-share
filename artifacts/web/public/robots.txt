@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /files/
+
+Sitemap: https://air4share.com/sitemap.xml
