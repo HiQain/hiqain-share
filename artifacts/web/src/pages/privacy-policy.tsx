@@ -31,7 +31,7 @@ export function PrivacyPolicy() {
             <p className="text-muted-foreground">
               Air4Share is a peer-to-peer file sharing tool that allows you to
               transfer files directly between devices. It operates independently
-              under the Hiqain umbrella and maintains its own privacy practices.
+              under the Enzosoft umbrella and maintains its own privacy practices.
             </p>
           </section>
 
@@ -186,13 +186,13 @@ export function PrivacyPolicy() {
 
           <section className="space-y-3">
             <h2 className="text-2xl font-semibold">
-              9. Relationship with Hiqain
+              9. Relationship with Enzosoft
             </h2>
 
             <p className="text-muted-foreground">
-              Air4Share is an independent tool operating under the Hiqain
+              Air4Share is an independent tool operating under the Enzosoft
               umbrella. It maintains its own privacy practices as described in
-              this document. Hiqain&apos;s other tools each have their own
+              this document. Enzosoft&apos;s other products each have their own
               separate Privacy Policy.
             </p>
           </section>
@@ -234,12 +234,12 @@ export function PrivacyPolicy() {
               <p>
                 Parent organization:{" "}
                 <a
-                  href="https://hiqain.com"
+                  href="https://enzosoft.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline underline-offset-4 text-blue-500"
                 >
-                  hiqain.com
+                  enzosoft.com
                 </a>
               </p>
             </div>

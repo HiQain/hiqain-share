@@ -5,7 +5,7 @@ import { LanguageSelector } from "@/components/LanguageBar";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Switch } from "@/components/ui/switch";
 
-const THEME_STORAGE_KEY = "hiqain-share-theme";
+const THEME_STORAGE_KEY = "enzosoft-share-theme";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -37,7 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-16">
           <Link href="/" className="flex items-center gap-2 group">
             <div className="text-primary-foreground rounded-md group-hover:scale-105 transition-transform">
-              <img src="/share_logo.png" alt="Hiqain Share Logo" width={80} height={80} />
+              <img src="/share_logo.png" alt="Air4Share Logo" width={80} height={80} />
             </div>
           </Link>
 

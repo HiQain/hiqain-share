@@ -16,9 +16,9 @@ export function SiteFooter() {
       <div className="container mx-auto max-w-6xl px-4 py-6 text-sm text-muted-foreground">
         <div className="grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-start">
           <div className="space-y-3 text-center md:text-left">
-            <Link href="/" className="flex items-center gap-2 group">
+            <Link href="/" className="group inline-flex w-fit items-center gap-2">
               <div className="text-primary-foreground rounded-md group-hover:scale-105 transition-transform">
-                <img src="/share_logo.png" alt="Hiqain Share Logo" width={180} height={180} />
+                <img src="/share_logo.png" alt="Air4Share Logo" width={180} height={180} />
               </div>
             </Link>
             <p className="max-w-80 leading-6">
@@ -52,12 +52,12 @@ export function SiteFooter() {
           <p>Copyright © 2026 Air4Share. All rights reserved.</p>
           <div className="md:text-right">
             <a
-              href="https://hiqain.com/"
+              href="https://enzosoft.com/"
               target="_blank"
               rel="noreferrer"
               className="inline-flex font-medium text-foreground transition-colors hover:text-primary hover:underline"
             >
-              Powered by Hiqain
+              Powered by Enzosoft
             </a>
           </div>
         </div>

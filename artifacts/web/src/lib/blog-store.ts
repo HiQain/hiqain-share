@@ -6,7 +6,7 @@ export type BlogPost = {
   imageDataUrl: string | null;
   publishedAt: string;
 };
-const ADMIN_SESSION_KEY = "hiqain-share.admin-auth";
+const ADMIN_SESSION_KEY = "enzosoft-share.admin-auth";
 
 function canUseStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";

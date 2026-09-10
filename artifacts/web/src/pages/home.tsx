@@ -19,14 +19,12 @@ import {
   AlertTriangle,
   Copy,
   Download,
-  ExternalLink,
   FileArchive,
   FileAudio,
   FileIcon,
   FileText,
   FileVideo,
   Image as ImageIcon,
-  Link2,
   Loader2,
   Lock,
   Maximize,
@@ -213,17 +211,10 @@ function getFileFormatLabel(fileName: string, mimeType: string) {
   return mimePart ? mimePart.toUpperCase() : "FILE";
 }
 
-function extractFirstUrl(text: string): string | null {
-  const match = text.match(/https?:\/\/[^\s]+/i);
-  return match ? match[0].replace(/[.,;:!?)\]]+$/, "") : null;
-}
-
-function getDisplayHost(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
+function extractUrls(text: string): string[] {
+  return (text.match(/https?:\/\/[^\s]+/gi) ?? []).map((url) =>
+    url.replace(/[.,;:!?)\]]+$/, ""),
+  );
 }
 
 function createPreviewUrl(file: File) {
@@ -1410,7 +1401,7 @@ export function Home() {
 
   const isSharingLocally = captureStreamRef.current !== null && captureIntervalRef.current !== null;
   const isPrivateRoomIdle = !screenRoom && !chatRoom;
-  const detectedUrl = extractFirstUrl(textContent);
+  const detectedUrls = extractUrls(textContent);
 
   return (
     <div className="min-h-full bg-background">
@@ -1486,25 +1477,23 @@ export function Home() {
                       />
                     </div>
 
-                    {detectedUrl && (
-                      <a
-                        href={detectedUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="notranslate group flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 transition-colors hover:border-primary/50 hover:bg-primary/10"
-                      >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Link2 className="h-4.5 w-4.5" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-foreground">
-                            {getDisplayHost(detectedUrl)}
-                          </span>
-                          <span className="block truncate text-xs text-muted-foreground">{detectedUrl}</span>
-                        </span>
-                        <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-                      </a>
-                    )}
+                    {detectedUrls.length > 0 ? (
+                      <ul aria-label="Pasted links" className="notranslate min-w-0 space-y-1 overflow-hidden px-1">
+                        {detectedUrls.map((url, index) => (
+                          <li key={`${url}-${index}`} className="min-w-0">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={url}
+                              className="block truncate text-xs leading-5 text-primary transition-colors hover:underline sm:text-sm"
+                            >
+                              {url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
 
                     <div className="flex flex-wrap items-center gap-3">
                       <Button onClick={handleSaveText} disabled={saveText.isPending || !textContent.trim()}>
@@ -1641,7 +1630,7 @@ export function Home() {
                       </div>
                     ) : (
                       !isBoardLoading && (
-                        <div className="py-12 text-center text-xl text-muted-foreground">
+                        <div className="py-2 text-center text-xl text-muted-foreground">
                           No files yet. Upload some files to share!
                         </div>
                       )
@@ -1664,29 +1653,20 @@ export function Home() {
                         <Lock className="h-4.5 w-4.5" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Create Private Share</h2>
+                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Create Private Chat</h2>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          Create a room for secure screen sharing or real-time chat on the same network.
+                          Create a room for secure real-time chat on the same network.
                         </p>
                       </div>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div>
                       <Button
-                        className="h-11 rounded-lg text-sm font-semibold"
-                        onClick={() => void handleCreateRoom()}
-                        disabled={isScreenActionPending || isChatActionPending}
-                      >
-                        {isScreenActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Monitor className="mr-2 h-4 w-4" />}
-                        Create Private Share For Screen Share
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        className="h-11 rounded-lg text-sm font-semibold"
+                        className="h-11 w-full rounded-lg text-sm font-semibold"
                         onClick={() => void handleCreateChatRoom()}
-                        disabled={isScreenActionPending || isChatActionPending}
+                        disabled={isChatActionPending}
                       >
                         {isChatActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
-                        Create Private Share For Chat
+                        Create Private Chat
                       </Button>
                     </div>
                   </div>
@@ -1697,9 +1677,9 @@ export function Home() {
                         <Users className="h-4.5 w-4.5" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Join Existing Room</h2>
+                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Join Existing Chat</h2>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          Enter the room code below to join an existing screen share or chat room.
+                          Enter the room code below to join an existing private chat.
                         </p>
                       </div>
                     </div>
@@ -1725,10 +1705,10 @@ export function Home() {
                       <Button
                         variant="secondary"
                         className="h-10 rounded-lg px-5 text-sm font-semibold"
-                        onClick={() => void handleJoinPrivateRoom()}
-                        disabled={isScreenActionPending || isChatActionPending}
+                        onClick={() => void handleJoinChatRoom(roomCodeInput)}
+                        disabled={isChatActionPending}
                       >
-                        {isScreenActionPending || isChatActionPending ? "Joining..." : "Join"}
+                        {isChatActionPending ? "Joining..." : "Join"}
                       </Button>
                     </div>
                   </div>

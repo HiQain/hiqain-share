@@ -9,7 +9,7 @@ export function HowItWorks() {
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Sharing made frictionless</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            No accounts. No cables. No emailing yourself. Hiqain Share connects devices instantly on the same network.
+            No accounts. No cables. No emailing yourself. Air4Share by Enzosoft connects devices instantly on the same network.
           </p>
         </div>
 

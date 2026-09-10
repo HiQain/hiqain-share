@@ -2,8 +2,13 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const cwd = process.cwd();
-const envPath = path.join(cwd, ".env");
+// SPanel may launch the entry file with the account home as its working
+// directory. Anchor all deployment paths to this file so the app works no
+// matter where the process was started from.
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
+process.chdir(appRoot);
+
+const envPath = path.join(appRoot, ".env");
 
 if (existsSync(envPath)) {
   const envFile = readFileSync(envPath, "utf8");
@@ -37,5 +42,5 @@ if (existsSync(envPath)) {
   }
 }
 
-const appEntry = path.resolve(cwd, "dist/index.mjs");
+const appEntry = path.join(appRoot, "dist", "index.mjs");
 await import(pathToFileURL(appEntry).href);

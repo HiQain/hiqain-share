@@ -8,7 +8,7 @@ const SECTIONS = [
   {
     title: "General Information",
     body:
-      "The information and tools provided on Hiqain (hiqain.com) are for general informational and utility purposes only. We make no warranty of any kind, express or implied, about the completeness, accuracy, reliability, or suitability of the services provided.",
+      "The information and tools provided through Air4Share, an Enzosoft product (enzosoft.com), are for general informational and utility purposes only. We make no warranty of any kind, express or implied, about the completeness, accuracy, reliability, or suitability of the services provided.",
   },
   {
     title: "Tool Accuracy",
@@ -18,7 +18,7 @@ const SECTIONS = [
   {
     title: "File Privacy",
     body:
-      "Files uploaded to Hiqain are processed on our servers and immediately deleted after the compression is complete. We do not store, share, or sell your uploaded images. However, you are responsible for the content of files you upload.",
+      "Files uploaded to Air4Share are processed on our servers and immediately deleted after processing is complete. We do not store, share, or sell your uploaded files. However, you are responsible for the content of files you upload.",
   },
   {
     title: "Third-Party Links",
@@ -28,7 +28,7 @@ const SECTIONS = [
   {
     title: "Limitation of Liability",
     body:
-      "Hiqain shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use or inability to use our services. Use of our tools is entirely at your own risk.",
+      "Air4Share and its parent company, Enzosoft, shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use or inability to use our services. Use of our tools is entirely at your own risk.",
   },
   {
     title: "Changes to This Disclaimer",

@@ -66,7 +66,7 @@ export function Admin() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@hiqain.com"
+                  placeholder="admin@enzosoft.com"
                 />
               </div>
               <div className="space-y-2">

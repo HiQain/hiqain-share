@@ -59,6 +59,7 @@
 @source inline("([");
 @source inline("([,");
 @source inline("([theme,");
+@source inline("(text.match(/https");
 @source inline(")[1]");
 @source inline("[");
 @source inline("[_open,");
@@ -79,6 +80,7 @@
 @source inline("[]");
 @source inline("[],");
 @source inline("[])");
+@source inline("[]).map((url)");
 @source inline("[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground");
 @source inline("[&_.recharts-cartesian-grid_line[stroke=");
 @source inline("[&_.recharts-curve.recharts-tooltip-cursor]:stroke-border");
@@ -392,7 +394,6 @@
 @source inline("border-primary");
 @source inline("border-primary-border");
 @source inline("border-primary/20");
-@source inline("border-primary/30");
 @source inline("border-primary/40");
 @source inline("border-primary/50");
 @source inline("border-r");
@@ -583,6 +584,8 @@
 @source inline("empty:before:pointer-events-none");
 @source inline("empty:before:text-muted-foreground");
 @source inline("en-US");
+@source inline("enzosoft-share-theme");
+@source inline("enzosoft-share.admin-auth");
 @source inline("errors[0]");
 @source inline("errors[0].message");
 @source inline("errors])");
@@ -722,7 +725,6 @@
 @source inline("group-has-data-[sidebar=menu-action]/menu-item:pr-8");
 @source inline("group-hover:opacity-100");
 @source inline("group-hover:scale-105");
-@source inline("group-hover:text-primary");
 @source inline("group-hover:translate-x-0.5");
 @source inline("group-hover/menu-item:opacity-100");
 @source inline("group-label");
@@ -808,8 +810,6 @@
 @source inline("has-focus:ring-[3px]");
 @source inline("has-focus:ring-ring/50");
 @source inline("hidden");
-@source inline("hiqain-share-theme");
-@source inline("hiqain-share.admin-auth");
 @source inline("hover-elevate");
 @source inline("hover:-translate-y-1");
 @source inline("hover:after:bg-sidebar-border");
@@ -817,14 +817,12 @@
 @source inline("hover:bg-destructive/10");
 @source inline("hover:bg-muted");
 @source inline("hover:bg-muted/50");
-@source inline("hover:bg-primary/10");
 @source inline("hover:bg-secondary");
 @source inline("hover:bg-sidebar-accent");
 @source inline("hover:bg-teal-50");
 @source inline("hover:bg-teal-600");
 @source inline("hover:border-primary/30");
 @source inline("hover:border-primary/40");
-@source inline("hover:border-primary/50");
 @source inline("hover:group-data-[collapsible=offcanvas]:bg-sidebar");
 @source inline("hover:opacity-100");
 @source inline("hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]");
@@ -886,6 +884,7 @@
 @source inline("last-used");
 @source inline("last:mt-0");
 @source inline("last:rounded-r-md");
+@source inline("leading-5");
 @source inline("leading-6");
 @source inline("leading-none");
 @source inline("leading-normal");
@@ -903,7 +902,6 @@
 @source inline("list-disc");
 @source inline("list-none");
 @source inline("lucide-react");
-@source inline("match[0].replace(/[.,");
 @source inline("max-age=");
 @source inline("max-h-[--radix-context-menu-content-available-height]");
 @source inline("max-h-[--radix-select-content-available-height]");
@@ -1146,7 +1144,6 @@
 @source inline("py-1");
 @source inline("py-1.5");
 @source inline("py-10");
-@source inline("py-12");
 @source inline("py-16");
 @source inline("py-2");
 @source inline("py-3");
@@ -1192,7 +1189,7 @@
 @source inline("rounded-tl-sm");
 @source inline("rounded-xl");
 @source inline("S]");
-@source inline("s]+/i)");
+@source inline("s]+/gi)");
 @source inline("ScreenParticipant[]");
 @source inline("script[");
 @source inline("scrollNext]");
@@ -1315,6 +1312,7 @@
 @source inline("sm:space-y-8");
 @source inline("sm:text-4xl");
 @source inline("sm:text-left");
+@source inline("sm:text-sm");
 @source inline("sm:text-xl");
 @source inline("sm:top-auto");
 @source inline("sm:w-auto");
@@ -1334,6 +1332,7 @@
 @source inline("stored[attribute]");
 @source inline("stored[attribute]!");
 @source inline("stream.getVideoTracks()[0]");
+@source inline("string[]");
 @source inline("stroke-border/60");
 @source inline("stroke-primary");
 @source inline("style[");
@@ -1384,7 +1383,6 @@
 @source inline("text-white");
 @source inline("text-xl");
 @source inline("text-xs");
-@source inline("text.match(/https");
 @source inline("Text[]");
 @source inline("text/");
 @source inline("textarea[placeholder],");
@@ -1432,7 +1430,7 @@
 @source inline("unknown[])");
 @source inline("UploadQueueItem[");
 @source inline("UploadQueueItem[]>([])");
-@source inline("URL(url).hostname.replace(/");
+@source inline("url.replace(/[.,");
 @source inline("UseCarouselParameters[0]");
 @source inline("UseCarouselParameters[1]");
 @source inline("useEmblaCarousel>[0]");
