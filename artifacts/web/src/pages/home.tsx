@@ -9,7 +9,7 @@ import {
   getListFilesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +30,7 @@ import {
   Maximize,
   MessageCircle,
   Monitor,
+  Paperclip,
   Save,
   Send,
   Trash2,
@@ -44,6 +45,8 @@ const POLL_INTERVAL = 3000;
 const SCREEN_STATUS_POLL_MS = 5000;
 const CHAT_STATUS_POLL_MS = 6000;
 const MAX_CHAT_MESSAGE_LENGTH = 2000;
+const MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const MAX_CHAT_ATTACHMENT_LABEL = "10MB";
 const SCREEN_CAPTURE_INTERVAL_MS = 450;
 const MAX_UPLOAD_SIZE_BYTES = 1024 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = "1GB";
@@ -151,11 +154,19 @@ type ChatRoomStatus = {
   createdAt: string;
 };
 
+type ChatAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 type ChatMessage = {
   id: string;
   deviceId: string;
   label: string;
   text: string;
+  attachment: ChatAttachment | null;
   sentAt: string;
 };
 
@@ -312,6 +323,23 @@ async function uploadFileWithProgress(
   });
 }
 
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.onabort = () => reject(new Error(`Reading ${file.name} was cancelled.`));
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result !== "string") {
+        reject(new Error(`Could not read ${file.name}.`));
+        return;
+      }
+      resolve(result.split(",")[1] ?? "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 async function apiRequest<T>(input: string, init?: RequestInit, expectJson = true): Promise<T> {
   const response = await fetch(input, init);
   const text = await response.text();
@@ -464,6 +492,62 @@ function RemoteFileThumbnail({ file }: { file: BoardFileItem }) {
   return <FileThumb mimeType={file.mimeType} fileName={file.name} previewUrl={previewUrl} />;
 }
 
+function ChatAttachmentView({
+  code,
+  attachment,
+  isOwn,
+}: {
+  code: string;
+  attachment: ChatAttachment;
+  isOwn: boolean;
+}) {
+  const baseUrl = `/api/chat/rooms/${code}/attachments/${attachment.id}`;
+  const isImage = isImageMime(attachment.mimeType);
+
+  if (isImage) {
+    return (
+      <a href={baseUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl">
+        <img
+          src={baseUrl}
+          alt={attachment.name}
+          className="notranslate max-h-60 w-full max-w-[240px] object-cover"
+        />
+      </a>
+    );
+  }
+
+  const Icon = isPdfMime(attachment.mimeType)
+    ? FileText
+    : isVideoMime(attachment.mimeType)
+      ? FileVideo
+      : isAudioMime(attachment.mimeType)
+        ? FileAudio
+        : attachment.mimeType.includes("zip") || attachment.mimeType.includes("rar") || attachment.mimeType.includes("7z")
+          ? FileArchive
+          : FileIcon;
+
+  return (
+    <a
+      href={`${baseUrl}?download`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`flex items-center gap-3 rounded-xl px-3 py-2 transition ${isOwn
+        ? "bg-primary-foreground/15 hover:bg-primary-foreground/25"
+        : "bg-background/70 hover:bg-background"
+        }`}
+    >
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isOwn ? "bg-primary-foreground/20" : "bg-primary/10 text-primary"}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="notranslate block max-w-[180px] truncate text-sm font-medium">{attachment.name}</span>
+        <span className="block text-[11px] opacity-80">{formatFileSize(attachment.sizeBytes)}</span>
+      </span>
+      <Download className="h-4 w-4 shrink-0 opacity-80" />
+    </a>
+  );
+}
+
 export function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -494,6 +578,7 @@ export function Home() {
   const [chatRoom, setChatRoom] = useState<ChatRoomStatus | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatMessageInput, setChatMessageInput] = useState("");
+  const [chatAttachment, setChatAttachment] = useState<File | null>(null);
   const [chatNotice, setChatNotice] = useState<string | null>(null);
   const [isChatActionPending, setIsChatActionPending] = useState(false);
   const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
@@ -510,6 +595,21 @@ export function Home() {
   const localFrameSequenceRef = useRef(0);
   const chatEventsRef = useRef<EventSource | null>(null);
   const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
+  const chatFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const chatAttachmentPreview = useMemo(
+    () => (chatAttachment ? createPreviewUrl(chatAttachment) : null),
+    [chatAttachment],
+  );
+
+  useEffect(() => {
+    if (!chatAttachmentPreview) {
+      return;
+    }
+    return () => {
+      URL.revokeObjectURL(chatAttachmentPreview);
+    };
+  }, [chatAttachmentPreview]);
 
   const replaceLatestFrame = (nextFrame: ScreenFrame | null) => {
     setLatestFrame((current) => {
@@ -862,6 +962,8 @@ export function Home() {
       await apiRequest(`/api/chat/rooms/${chatRoom.code}/leave`, { method: "POST" }, false);
       setChatRoom(null);
       setChatMessages([]);
+      setChatAttachment(null);
+      setChatMessageInput("");
       setChatNotice("You left the room.");
     } catch (error) {
       setChatNotice(error instanceof Error ? error.message : "Could not leave the room.");
@@ -880,6 +982,8 @@ export function Home() {
       await apiRequest(`/api/chat/rooms/${chatRoom.code}/close`, { method: "POST" }, false);
       setChatRoom(null);
       setChatMessages([]);
+      setChatAttachment(null);
+      setChatMessageInput("");
       setChatNotice("Room closed.");
       toast({ title: "Room closed" });
     } catch (error) {
@@ -889,21 +993,52 @@ export function Home() {
     }
   };
 
+  const handleSelectChatAttachment = (file: File | null) => {
+    if (!file) {
+      setChatAttachment(null);
+      return;
+    }
+    if (file.size > MAX_CHAT_ATTACHMENT_BYTES) {
+      toast({
+        title: "File too large",
+        description: `${file.name} exceeds the ${MAX_CHAT_ATTACHMENT_LABEL} limit.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setChatAttachment(file);
+  };
+
   const handleSendChatMessage = async () => {
     const text = chatMessageInput.trim();
-    if (!chatRoom || !text) {
+    if (!chatRoom || (!text && !chatAttachment)) {
       return;
     }
 
     try {
       setIsSendingChatMessage(true);
+
+      const payload: { text: string; attachment?: { name: string; mimeType: string; dataBase64: string } } = {
+        text,
+      };
+
+      if (chatAttachment) {
+        const dataBase64 = await readFileAsBase64(chatAttachment);
+        payload.attachment = {
+          name: chatAttachment.name,
+          mimeType: chatAttachment.type || "application/octet-stream",
+          dataBase64,
+        };
+      }
+
       const message = await apiRequest<ChatMessage>(`/api/chat/rooms/${chatRoom.code}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(payload),
       });
       appendChatMessage(message);
       setChatMessageInput("");
+      setChatAttachment(null);
     } catch (error) {
       setChatNotice(error instanceof Error ? error.message : "Could not send message.");
     } finally {
@@ -1949,12 +2084,17 @@ export function Home() {
                                 {isOwn ? "You" : <span className="notranslate">{message.label}</span>}
                               </span>
                               <div
-                                className={`notranslate max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm ${isOwn
+                                className={`max-w-[75%] space-y-2 rounded-2xl px-3.5 py-2 text-sm ${isOwn
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-muted text-foreground"
                                   }`}
                               >
-                                {message.text}
+                                {message.attachment && (
+                                  <ChatAttachmentView code={chatRoom.code} attachment={message.attachment} isOwn={isOwn} />
+                                )}
+                                {message.text && (
+                                  <p className="notranslate whitespace-pre-wrap break-words">{message.text}</p>
+                                )}
                               </div>
                             </div>
                           );
@@ -1963,28 +2103,73 @@ export function Home() {
                       <div ref={chatMessagesEndRef} />
                     </div>
 
-                    <div className="flex items-center gap-2 border-t p-3">
-                      <input
-                        value={chatMessageInput}
-                        onChange={(event) => setChatMessageInput(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" && !event.shiftKey) {
-                            event.preventDefault();
-                            void handleSendChatMessage();
-                          }
-                        }}
-                        placeholder="Type a message..."
-                        maxLength={MAX_CHAT_MESSAGE_LENGTH}
-                        className="h-10 flex-1 rounded-lg border border-input bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-primary"
-                      />
-                      <Button
-                        size="icon"
-                        className="h-10 w-10 shrink-0 rounded-lg"
-                        onClick={() => void handleSendChatMessage()}
-                        disabled={isSendingChatMessage || !chatMessageInput.trim()}
-                      >
-                        {isSendingChatMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      </Button>
+                    <div className="border-t p-3">
+                      {chatAttachment && (
+                        <div className="mb-2 flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+                          <FileThumb
+                            mimeType={chatAttachment.type || "application/octet-stream"}
+                            fileName={chatAttachment.name}
+                            previewUrl={chatAttachmentPreview}
+                            compact
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="notranslate truncate text-sm font-medium text-foreground">{chatAttachment.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(chatAttachment.size)}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-muted-foreground"
+                            onClick={() => setChatAttachment(null)}
+                            aria-label="Remove attachment"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          ref={chatFileInputRef}
+                          className="hidden"
+                          onChange={(event) => {
+                            handleSelectChatAttachment(event.target.files?.[0] ?? null);
+                            event.target.value = "";
+                          }}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 shrink-0 rounded-lg"
+                          onClick={() => chatFileInputRef.current?.click()}
+                          disabled={isSendingChatMessage}
+                          aria-label="Attach file"
+                          title={`Attach file (max ${MAX_CHAT_ATTACHMENT_LABEL})`}
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
+                        <input
+                          value={chatMessageInput}
+                          onChange={(event) => setChatMessageInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" && !event.shiftKey) {
+                              event.preventDefault();
+                              void handleSendChatMessage();
+                            }
+                          }}
+                          placeholder="Type a message..."
+                          maxLength={MAX_CHAT_MESSAGE_LENGTH}
+                          className="h-10 flex-1 rounded-lg border border-input bg-background px-3.5 text-sm text-foreground outline-none transition focus:border-primary"
+                        />
+                        <Button
+                          size="icon"
+                          className="h-10 w-10 shrink-0 rounded-lg"
+                          onClick={() => void handleSendChatMessage()}
+                          disabled={isSendingChatMessage || (!chatMessageInput.trim() && !chatAttachment)}
+                        >
+                          {isSendingChatMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

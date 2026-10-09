@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
 import { getRequestDevice } from "../lib/room";
-import { chatStore, MAX_MESSAGE_LENGTH } from "../lib/chat-store";
+import {
+  chatStore,
+  MAX_MESSAGE_LENGTH,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  type ChatAttachmentInput,
+} from "../lib/chat-store";
 
 const router: IRouter = Router();
 
@@ -45,12 +50,27 @@ function serializeStatus(result: ReturnType<typeof chatStore.getRoomStatus>) {
   };
 }
 
-function serializeMessage(message: { id: string; deviceId: string; label: string; text: string; sentAt: Date }) {
+function serializeMessage(message: {
+  id: string;
+  deviceId: string;
+  label: string;
+  text: string;
+  attachment: { id: string; name: string; mimeType: string; sizeBytes: number } | null;
+  sentAt: Date;
+}) {
   return {
     id: message.id,
     deviceId: message.deviceId,
     label: message.label,
     text: message.text,
+    attachment: message.attachment
+      ? {
+          id: message.attachment.id,
+          name: message.attachment.name,
+          mimeType: message.attachment.mimeType,
+          sizeBytes: message.attachment.sizeBytes,
+        }
+      : null,
     sentAt: message.sentAt.toISOString(),
   };
 }
@@ -66,18 +86,54 @@ function parseJoinRoomBody(body: unknown): { code: string } {
   return { code };
 }
 
-function parseMessageBody(body: unknown): { text: string } {
-  const candidate = typeof body === "object" && body !== null ? (body as { text?: unknown }).text : undefined;
-  const text = typeof candidate === "string" ? candidate.trim() : "";
+function parseAttachment(raw: unknown): ChatAttachmentInput | undefined {
+  if (typeof raw !== "object" || raw === null) {
+    return undefined;
+  }
 
-  if (!text) {
+  const candidate = raw as { name?: unknown; mimeType?: unknown; dataBase64?: unknown };
+  const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+  const dataBase64 = typeof candidate.dataBase64 === "string" ? candidate.dataBase64 : "";
+
+  if (!name || !dataBase64) {
+    throw new Error("Attachment is missing a name or contents.");
+  }
+
+  const mimeType =
+    typeof candidate.mimeType === "string" && candidate.mimeType.trim()
+      ? candidate.mimeType.trim()
+      : "application/octet-stream";
+
+  let data: Buffer;
+  try {
+    data = Buffer.from(dataBase64, "base64");
+  } catch {
+    throw new Error("Attachment could not be read.");
+  }
+
+  if (data.length === 0) {
+    throw new Error("Attachment is empty.");
+  }
+  if (data.length > MAX_ATTACHMENT_SIZE_BYTES) {
+    throw new Error("Attachment is too large.");
+  }
+
+  return { name: name.slice(0, 255), mimeType, data };
+}
+
+function parseMessageBody(body: unknown): { text: string; attachment?: ChatAttachmentInput } {
+  const source = typeof body === "object" && body !== null ? (body as { text?: unknown; attachment?: unknown }) : {};
+  const text = typeof source.text === "string" ? source.text.trim() : "";
+  const attachment = parseAttachment(source.attachment);
+
+  if (!text && !attachment) {
     throw new Error("Message can't be empty.");
   }
   if (text.length > MAX_MESSAGE_LENGTH) {
     throw new Error("Message is too long.");
   }
 
-  return { text };
+  return { text, attachment };
 }
 
 router.post("/chat/rooms", (req, res) => {
@@ -130,7 +186,7 @@ router.get("/chat/rooms/:code/messages", (req, res) => {
 });
 
 router.post("/chat/rooms/:code/messages", (req, res) => {
-  let body: { text: string };
+  let body: { text: string; attachment?: ChatAttachmentInput };
   try {
     body = parseMessageBody(req.body);
   } catch (error) {
@@ -139,13 +195,45 @@ router.post("/chat/rooms/:code/messages", (req, res) => {
   }
 
   const { deviceId, networkId } = getRequestDevice(req, res);
-  const result = chatStore.sendMessage(req.params["code"]!.trim().toUpperCase(), networkId, deviceId, body.text);
+  const result = chatStore.sendMessage(
+    req.params["code"]!.trim().toUpperCase(),
+    networkId,
+    deviceId,
+    body.text,
+    body.attachment,
+  );
   if ("error" in result) {
     res.status(403).json({ error: result.error });
     return;
   }
 
   res.status(201).json(serializeMessage(result.message));
+});
+
+router.get("/chat/rooms/:code/attachments/:attachmentId", (req, res) => {
+  const { deviceId, networkId } = getRequestDevice(req, res);
+  const result = chatStore.getAttachment(
+    req.params["code"]!.trim().toUpperCase(),
+    networkId,
+    deviceId,
+    req.params["attachmentId"]!,
+  );
+  if ("error" in result) {
+    res.status(404).json({ error: result.error });
+    return;
+  }
+
+  const { attachment } = result;
+  const dispositionType = req.query["download"] !== undefined ? "attachment" : "inline";
+  const asciiName = attachment.name.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "'");
+  res.setHeader("Content-Type", attachment.mimeType);
+  res.setHeader("Content-Length", String(attachment.data.length));
+  res.setHeader(
+    "Content-Disposition",
+    `${dispositionType}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(attachment.name)}`,
+  );
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  res.send(attachment.data);
 });
 
 router.get("/chat/rooms/:code/events", (req, res) => {

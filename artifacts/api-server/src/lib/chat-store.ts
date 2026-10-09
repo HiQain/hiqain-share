@@ -4,6 +4,7 @@ const ROOM_TTL_MS = 1000 * 60 * 60 * 2;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_MESSAGES_PER_ROOM = 200;
 export const MAX_MESSAGE_LENGTH = 2000;
+export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 
 export type ChatParticipant = {
   deviceId: string;
@@ -12,11 +13,31 @@ export type ChatParticipant = {
   lastSeen: Date;
 };
 
+export type ChatAttachmentMeta = {
+  id: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+export type ChatAttachmentInput = {
+  name: string;
+  mimeType: string;
+  data: Buffer;
+};
+
+type StoredAttachment = {
+  name: string;
+  mimeType: string;
+  data: Buffer;
+};
+
 export type ChatMessage = {
   id: string;
   deviceId: string;
   label: string;
   text: string;
+  attachment: ChatAttachmentMeta | null;
   sentAt: Date;
 };
 
@@ -39,6 +60,7 @@ type ChatRoom = {
   closedAt: Date | null;
   participants: Map<string, ChatParticipant>;
   messages: ChatMessage[];
+  attachments: Map<string, StoredAttachment>;
 };
 
 function now(): Date {
@@ -125,6 +147,7 @@ export class ChatStore {
         ],
       ]),
       messages: [],
+      attachments: new Map(),
     };
     this.rooms.set(code, room);
     return room;
@@ -204,27 +227,71 @@ export class ChatStore {
     return { room, participant };
   }
 
-  sendMessage(code: string, networkId: string, deviceId: string, text: string) {
+  sendMessage(
+    code: string,
+    networkId: string,
+    deviceId: string,
+    text: string,
+    attachmentInput?: ChatAttachmentInput,
+  ) {
     const touched = this.touchRoom(code, networkId, deviceId);
     if ("error" in touched) {
       return touched;
     }
 
+    const messageId = crypto.randomBytes(8).toString("hex");
+
+    let attachment: ChatAttachmentMeta | null = null;
+    if (attachmentInput) {
+      const attachmentId = crypto.randomBytes(8).toString("hex");
+      touched.room.attachments.set(attachmentId, {
+        name: attachmentInput.name,
+        mimeType: attachmentInput.mimeType,
+        data: attachmentInput.data,
+      });
+      attachment = {
+        id: attachmentId,
+        name: attachmentInput.name,
+        mimeType: attachmentInput.mimeType,
+        sizeBytes: attachmentInput.data.length,
+      };
+    }
+
     const message: ChatMessage = {
-      id: crypto.randomBytes(8).toString("hex"),
+      id: messageId,
       deviceId,
       label: touched.participant.label,
       text,
+      attachment,
       sentAt: now(),
     };
 
     touched.room.messages.push(message);
     if (touched.room.messages.length > MAX_MESSAGES_PER_ROOM) {
-      touched.room.messages.splice(0, touched.room.messages.length - MAX_MESSAGES_PER_ROOM);
+      const removed = touched.room.messages.splice(0, touched.room.messages.length - MAX_MESSAGES_PER_ROOM);
+      for (const dropped of removed) {
+        if (dropped.attachment) {
+          touched.room.attachments.delete(dropped.attachment.id);
+        }
+      }
     }
     touched.room.updatedAt = now();
     this.emit(code, { type: "message", message });
     return { room: touched.room, message };
+  }
+
+  getAttachment(code: string, networkId: string, deviceId: string, attachmentId: string) {
+    const touched = this.touchRoom(code, networkId, deviceId);
+    if ("error" in touched) {
+      return touched;
+    }
+
+    const attachment = touched.room.attachments.get(attachmentId);
+    if (!attachment) {
+      return { error: "Attachment not found" as const };
+    }
+
+    return { room: touched.room, attachment };
   }
 
   getMessages(code: string, networkId: string, deviceId: string) {
