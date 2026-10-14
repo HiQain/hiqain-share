@@ -1,12 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { ImageOff, Trash2 } from "lucide-react";
+import { CalendarClock, ImageOff, Pencil, Trash2 } from "lucide-react";
 import { useDeleteBlog, useListBlogs, getListBlogsQueryKey } from "@workspace/api-client-react";
 import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import type { BlogPost } from "@/lib/blog-store";
+import { isScheduled, type BlogPost } from "@/lib/blog-store";
 
 function formatDate(date: string): string {
   const value = new Date(date);
@@ -23,11 +23,14 @@ export function AdminBlogListPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const deleteBlog = useDeleteBlog();
-  const { data: posts = [] } = useListBlogs({
-    query: {
-      queryKey: getListBlogsQueryKey(),
+  const { data: posts = [] } = useListBlogs(
+    { includeScheduled: true },
+    {
+      query: {
+        queryKey: getListBlogsQueryKey({ includeScheduled: true }),
+      },
     },
-  });
+  );
 
   const handleDeletePost = (id: string) => {
     deleteBlog.mutate(
@@ -35,6 +38,7 @@ export function AdminBlogListPage() {
       {
         onSuccess: () => {
           void queryClient.invalidateQueries({ queryKey: getListBlogsQueryKey() });
+          void queryClient.invalidateQueries({ queryKey: getListBlogsQueryKey({ includeScheduled: true }) });
           toast({
             title: "Blog deleted",
             description: "The blog entry has been removed.",
@@ -69,7 +73,7 @@ export function AdminBlogListPage() {
                   key={post.id}
                   className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
                 >
-                  <div className="aspect-[16/9] w-full overflow-hidden bg-muted">
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
                     {post.imageDataUrl ? (
                       <img src={post.imageDataUrl} alt={post.title} className="h-full w-full object-cover" />
                     ) : (
@@ -77,16 +81,29 @@ export function AdminBlogListPage() {
                         <ImageOff className="h-6 w-6 text-muted-foreground" />
                       </div>
                     )}
+                    {isScheduled(post.publishedAt) && (
+                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm ring-1 ring-border">
+                        <CalendarClock className="h-3 w-3" />
+                        Scheduled
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-4">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {isScheduled(post.publishedAt) ? "Publishes " : ""}
                       {formatDate(post.publishedAt)}
                     </p>
                     <h2 className="line-clamp-2 text-base font-semibold leading-snug">{post.title}</h2>
                     <p className="line-clamp-2 flex-1 text-sm text-muted-foreground">{post.excerpt}</p>
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex flex-wrap gap-2 pt-2">
                       <Button asChild variant="outline" size="sm" className="flex-1">
                         <Link href={`/blog/${post.id}`}>View</Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="flex-1">
+                        <Link href={`/admin/blogs/${post.id}/edit`}>
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                          Edit
+                        </Link>
                       </Button>
                       <Button
                         variant="secondary"

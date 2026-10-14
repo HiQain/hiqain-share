@@ -10,6 +10,7 @@ import { HowItWorks } from "@/pages/how-it-works";
 import { Admin } from "@/pages/admin";
 import { AdminBlogListPage } from "@/pages/admin-blog-list";
 import { AdminBlogNewPage } from "@/pages/admin-blog-new";
+import { AdminBlogEditPage } from "@/pages/admin-blog-edit";
 import { Blog } from "@/pages/blog";
 import { BlogDetailPage } from "@/pages/blog-detail";
 import { PrivacyPolicy } from "@/pages/privacy-policy";
@@ -31,6 +32,7 @@ function Router() {
         <Route path="/admin" component={Admin} />
         <Route path="/admin/blogs" component={AdminBlogListPage} />
         <Route path="/admin/blogs/new" component={AdminBlogNewPage} />
+        <Route path="/admin/blogs/:id/edit" component={AdminBlogEditPage} />
         <Route path="/how-it-works" component={HowItWorks} />
         <Route path="/blog" component={Blog} />
         <Route path="/blog/:id" component={BlogDetailPage} />

@@ -163,6 +163,16 @@ paths:
       operationId: listBlogs
       tags: [blogs]
       summary: List blog posts
+      parameters:
+        - name: includeScheduled
+          in: query
+          required: false
+          description: >-
+            Include posts whose publish date is still in the future. Public
+            views omit this so scheduled posts stay hidden until their date;
+            admin views pass true to see them.
+          schema:
+            type: boolean
       responses:
         "200":
           description: Blog posts
@@ -191,6 +201,31 @@ paths:
                 $ref: "#/components/schemas/BlogPost"
 
   /blogs/{blogId}:
+    put:
+      operationId: updateBlog
+      tags: [blogs]
+      summary: Update a blog post
+      parameters:
+        - name: blogId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBlogBody"
+      responses:
+        "200":
+          description: Updated blog post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlogPost"
+        "404":
+          description: Blog post not found
     delete:
       operationId: deleteBlog
       tags: [blogs]
@@ -408,21 +443,64 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        slug:
+          type: string
+          maxLength: 80
+          description: Custom URL slug. Falls back to the title when blank.
         excerpt:
           type: string
-          minLength: 1
           maxLength: 1000
+          description: Short summary. Auto-generated from the content when blank.
         content:
           type: string
           minLength: 1
           maxLength: 20000
+        publishedAt:
+          type: string
+          format: date-time
+          description: >-
+            Publish date. A future date schedules the post so it stays hidden
+            on public views until then. Defaults to now when blank.
         imageDataUrl:
           oneOf:
             - type: string
             - type: "null"
       required:
         - title
-        - excerpt
+        - content
+        - imageDataUrl
+
+    UpdateBlogBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        slug:
+          type: string
+          maxLength: 80
+          description: Custom URL slug. Falls back to the title when blank.
+        excerpt:
+          type: string
+          maxLength: 1000
+          description: Short summary. Auto-generated from the content when blank.
+        content:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        publishedAt:
+          type: string
+          format: date-time
+          description: >-
+            Publish date. A future date schedules the post so it stays hidden
+            on public views until then.
+        imageDataUrl:
+          oneOf:
+            - type: string
+            - type: "null"
+      required:
+        - title
         - content
         - imageDataUrl
 

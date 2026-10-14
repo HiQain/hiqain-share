@@ -121,6 +121,10 @@ export const DownloadFileResponse = zod.object({
 /**
  * @summary List blog posts
  */
+export const ListBlogsQueryParams = zod.object({
+  includeScheduled: zod.coerce.boolean().optional(),
+});
+
 export const ListBlogsResponseItem = zod.object({
   id: zod.string(),
   title: zod.string(),
@@ -136,14 +140,42 @@ export const ListBlogsResponse = zod.array(ListBlogsResponseItem);
  */
 export const createBlogBodyTitleMax = 200;
 
+export const createBlogBodySlugMax = 80;
+
 export const createBlogBodyExcerptMax = 1000;
 
 export const createBlogBodyContentMax = 20000;
 
 export const CreateBlogBody = zod.object({
   title: zod.string().min(1).max(createBlogBodyTitleMax),
-  excerpt: zod.string().min(1).max(createBlogBodyExcerptMax),
+  slug: zod.string().max(createBlogBodySlugMax).optional(),
+  excerpt: zod.string().max(createBlogBodyExcerptMax).optional(),
   content: zod.string().min(1).max(createBlogBodyContentMax),
+  publishedAt: zod.coerce.date().optional(),
+  imageDataUrl: zod.union([zod.string(), zod.null()]),
+});
+
+/**
+ * @summary Update a blog post
+ */
+export const UpdateBlogParams = zod.object({
+  blogId: zod.coerce.string(),
+});
+
+export const updateBlogBodyTitleMax = 200;
+
+export const updateBlogBodySlugMax = 80;
+
+export const updateBlogBodyExcerptMax = 1000;
+
+export const updateBlogBodyContentMax = 20000;
+
+export const UpdateBlogBody = zod.object({
+  title: zod.string().min(1).max(updateBlogBodyTitleMax),
+  slug: zod.string().max(updateBlogBodySlugMax).optional(),
+  excerpt: zod.string().max(updateBlogBodyExcerptMax).optional(),
+  content: zod.string().min(1).max(updateBlogBodyContentMax),
+  publishedAt: zod.coerce.date().optional(),
   imageDataUrl: zod.union([zod.string(), zod.null()]),
 });
 

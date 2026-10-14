@@ -3,6 +3,7 @@ import { Zap, Menu, X, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LanguageSelector } from "@/components/LanguageBar";
 import { SiteFooter } from "@/components/SiteFooter";
+import { Seo, SeoProvider } from "@/components/seo";
 import { Switch } from "@/components/ui/switch";
 
 const THEME_STORAGE_KEY = "enzosoft-share-theme";
@@ -32,7 +33,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
+    <SeoProvider>
+      <Seo />
+      <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-16">
           <Link href="/" className="flex items-center gap-2 group">
@@ -112,7 +115,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <SiteFooter />
-    </div>
+        <SiteFooter />
+      </div>
+    </SeoProvider>
   );
 }

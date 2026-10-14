@@ -10,9 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { slugify, toDateInputValue } from "@/lib/blog-store";
 
 type BlogFormState = {
   title: string;
+  slug: string;
+  publishedAt: string;
   excerpt: string;
   content: string;
   imageDataUrl: string | null;
@@ -20,6 +23,8 @@ type BlogFormState = {
 
 const initialFormState: BlogFormState = {
   title: "",
+  slug: "",
+  publishedAt: toDateInputValue(new Date().toISOString()),
   excerpt: "",
   content: "",
   imageDataUrl: null,
@@ -30,7 +35,23 @@ export function AdminBlogNewPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [form, setForm] = useState<BlogFormState>(initialFormState);
+  // Track whether the slug was typed by hand so we stop auto-filling it from the title.
+  const [slugEdited, setSlugEdited] = useState(false);
   const createBlog = useCreateBlog();
+
+  const handleTitleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const title = e.target.value;
+    setForm((current) => ({
+      ...current,
+      title,
+      slug: slugEdited ? current.slug : slugify(title),
+    }));
+  };
+
+  const handleSlugChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSlugEdited(true);
+    setForm((current) => ({ ...current, slug: e.target.value }));
+  };
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,13 +67,15 @@ export function AdminBlogNewPage() {
     reader.readAsDataURL(file);
   };
 
+  const previewSlug = slugify(form.slug || form.title) || "post";
+
   const handleAddPost = (e: FormEvent) => {
     e.preventDefault();
 
-    if (!form.title.trim() || !form.excerpt.trim() || !form.content.trim()) {
+    if (!form.title.trim() || !form.content.trim()) {
       toast({
         title: "Missing fields",
-        description: "Title, excerpt, and content are required.",
+        description: "Title and content are required.",
         variant: "destructive",
       });
       return;
@@ -62,15 +85,19 @@ export function AdminBlogNewPage() {
       {
         data: {
           title: form.title.trim(),
-          excerpt: form.excerpt.trim(),
+          slug: form.slug.trim() || undefined,
+          excerpt: form.excerpt.trim() || undefined,
           content: form.content.trim(),
+          publishedAt: form.publishedAt ? new Date(form.publishedAt).toISOString() : undefined,
           imageDataUrl: form.imageDataUrl,
         },
       },
       {
         onSuccess: () => {
           setForm(initialFormState);
+          setSlugEdited(false);
           void queryClient.invalidateQueries({ queryKey: getListBlogsQueryKey() });
+          void queryClient.invalidateQueries({ queryKey: getListBlogsQueryKey({ includeScheduled: true }) });
           toast({
             title: "Blog added",
             description: "The new blog entry has been saved to the database.",
@@ -89,20 +116,47 @@ export function AdminBlogNewPage() {
       <Card className="overflow-hidden">
         <CardHeader className="space-y-2 border-b border-border/60 bg-muted/20 px-5 py-5 sm:px-6">
           <CardTitle className="text-2xl">New Blog Post</CardTitle>
-          <CardDescription>Use the editor below to format content before publishing.</CardDescription>
+          <CardDescription>
+            Title and content are required. Leave the excerpt blank to generate one from the content.
+          </CardDescription>
         </CardHeader>
         <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
           <form onSubmit={handleAddPost} className="space-y-5 sm:space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                value={form.title}
-                onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
-                placeholder="Enter blog title"
-              />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  value={form.title}
+                  onChange={handleTitleChange}
+                  placeholder="Enter blog title"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Publish date</label>
+                <Input
+                  type="date"
+                  value={form.publishedAt}
+                  onChange={(e) => setForm((current) => ({ ...current, publishedAt: e.target.value }))}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Excerpt</label>
+              <label className="text-sm font-medium">
+                URL slug <span className="font-normal text-muted-foreground">(auto-filled from the title — edit to customize)</span>
+              </label>
+              <Input
+                value={form.slug}
+                onChange={handleSlugChange}
+                placeholder="auto-generated-from-title"
+              />
+              <p className="text-xs text-muted-foreground">
+                Public URL: <span className="font-mono">/blog/{previewSlug}</span>
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Excerpt <span className="font-normal text-muted-foreground">(optional)</span>
+              </label>
               <Textarea
                 value={form.excerpt}
                 onChange={(e) => setForm((current) => ({ ...current, excerpt: e.target.value }))}

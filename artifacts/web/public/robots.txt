@@ -3,5 +3,6 @@ Allow: /
 Disallow: /admin
 Disallow: /admin/
 Disallow: /files/
+Disallow: /api/
 
 Sitemap: https://air4share.com/sitemap.xml

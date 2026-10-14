@@ -12,6 +12,7 @@
 @source inline("--sidebar-width");
 @source inline("--sidebar-width-icon");
 @source inline("--skeleton-width");
+@source inline("-+");
 @source inline("-1");
 @source inline("-1)");
 @source inline("-1)]");
@@ -50,6 +51,7 @@
 @source inline(".map(([key,");
 @source inline(".match(/filename=");
 @source inline(".replace(/");
+@source inline(".replace(/[");
 @source inline(".replace(/javascript:/gi,");
 @source inline(".role])");
 @source inline(".split(/");
@@ -59,7 +61,10 @@
 @source inline("([");
 @source inline("([,");
 @source inline("([theme,");
+@source inline("(/");
+@source inline("(site-wide");
 @source inline("(text.match(/https");
+@source inline(").replace(/");
 @source inline(")[1]");
 @source inline("[");
 @source inline("[_open,");
@@ -223,6 +228,7 @@
 @source inline("[isStoppingShare,");
 @source inline("[item]");
 @source inline("[k");
+@source inline("[key,");
 @source inline("[latestFrame,");
 @source inline("[latestFrame])");
 @source inline("[location,");
@@ -235,15 +241,20 @@
 @source inline("[objectUrl,");
 @source inline("[openMobile,");
 @source inline("[overflow-wrap:anywhere]");
+@source inline("[override,");
+@source inline("[override])");
 @source inline("[params");
 @source inline("[password,");
+@source inline("[post,");
 @source inline("[previewUrl,");
 @source inline("[roomCodeInput,");
+@source inline("[routeMeta,");
 @source inline("[screenMessage,");
 @source inline("[screenRoom");
 @source inline("[screenRoom,");
 @source inline("[scrollPrev,");
 @source inline("[setOpenProp,");
+@source inline("[slugEdited,");
 @source inline("[state,");
 @source inline("[state])");
 @source inline("[submitted,");
@@ -260,6 +271,7 @@
 @source inline("]:pl-7");
 @source inline("]:w-auto");
 @source inline("]:w-full");
+@source inline("]!.title,");
 @source inline("])");
 @source inline("])]:size-3");
 @source inline("])]:size-3.5");
@@ -277,9 +289,13 @@
 @source inline("=to-]:animate-out");
 @source inline("=to-]:fade-out");
 @source inline(">([");
+@source inline(">(auto-filled");
 @source inline(">[");
+@source inline(">/blog/");
 @source inline(">/i.test(trimmed)");
 @source inline(">Auto-expiring");
+@source inline("1]");
+@source inline("a-z0-9]+/g,");
 @source inline("absolute");
 @source inline("ActionType[");
 @source inline("active-elevate-2");
@@ -301,6 +317,7 @@
 @source inline("animate-pulse");
 @source inline("animate-spin");
 @source inline("api]");
+@source inline("apple-touch-icon");
 @source inline("application/json");
 @source inline("application/octet-stream");
 @source inline("application/pdf");
@@ -326,6 +343,9 @@
 @source inline("AttributeName[]");
 @source inline("AttributeTarget[]");
 @source inline("audio/");
+@source inline("auto-fill");
+@source inline("auto-filling");
+@source inline("auto-generated-from-title");
 @source inline("backdrop-blur");
 @source inline("basis-full");
 @source inline("bg-[--color-bg]");
@@ -335,6 +355,7 @@
 @source inline("bg-background");
 @source inline("bg-background/70");
 @source inline("bg-background/85");
+@source inline("bg-background/90");
 @source inline("bg-background/95");
 @source inline("bg-black");
 @source inline("bg-black/40");
@@ -370,6 +391,7 @@
 @source inline("block");
 @source inline("block-end");
 @source inline("block-start");
+@source inline("BlogPost[]");
 @source inline("BlogPost[]).find((entry)");
 @source inline("BlogPost[]).length");
 @source inline("BlogPost[]).map((post)");
@@ -427,6 +449,7 @@
 @source inline("ChatParticipant[]");
 @source inline("class-variance-authority");
 @source inline("ClassValue[])");
+@source inline("client-rendered");
 @source inline("cmdk-input-wrapper=");
 @source inline("config[configLabelKey]");
 @source inline("config[key");
@@ -596,6 +619,7 @@
 @source inline("errors[0]");
 @source inline("errors[0].message");
 @source inline("errors])");
+@source inline("eslint-disable-next-line");
 @source inline("fade-in-0");
 @source inline("family=Inter:wght@400");
 @source inline("field-content");
@@ -651,7 +675,9 @@
 @source inline("font-normal");
 @source inline("font-sans");
 @source inline("font-semibold");
+@source inline("form])");
 @source inline("FormState[K])");
+@source inline("future-dated");
 @source inline("G-25K8H26SDJ");
 @source inline("gap-1");
 @source inline("gap-1.5");
@@ -908,8 +934,11 @@
 @source inline("lg:px-16");
 @source inline("line-clamp-2");
 @source inline("line-clamp-3");
+@source inline("link[rel=");
 @source inline("list-disc");
 @source inline("list-none");
+@source inline("list[index");
+@source inline("location])");
 @source inline("lucide-react");
 @source inline("max-age=");
 @source inline("max-h-[--radix-context-menu-content-available-height]");
@@ -991,6 +1020,7 @@
 @source inline("menu-sub-item");
 @source inline("menubar-sub");
 @source inline("message]))");
+@source inline("meta[");
 @source inline("min-h-[110px]");
 @source inline("min-h-[170px]");
 @source inline("min-h-[260px]");
@@ -1029,6 +1059,7 @@
 @source inline("mt-3");
 @source inline("mt-4");
 @source inline("mt-6");
+@source inline("mt-8");
 @source inline("mt-auto");
 @source inline("mx-2");
 @source inline("mx-3.5");
@@ -1040,10 +1071,19 @@
 @source inline("navigate]");
 @source inline("navLinks[0].href");
 @source inline("navLinks[0].label");
+@source inline("newest-first,");
 @source inline("next-themes");
+@source inline("no-signup");
+@source inline("non-JS");
 @source inline("nth-last-2:-mt-1");
 @source inline("object-contain");
 @source inline("object-cover");
+@source inline("og:description");
+@source inline("og:image");
+@source inline("og:site_name");
+@source inline("og:title");
+@source inline("og:type");
+@source inline("og:url");
 @source inline("onSelect])");
 @source inline("opacity-0");
 @source inline("opacity-50");
@@ -1083,9 +1123,12 @@
 @source inline("p-5");
 @source inline("p-6");
 @source inline("p-8");
+@source inline("PAGE_META[");
+@source inline("PAGE_META[path]");
 @source inline("page-view");
 @source inline("params]");
 @source inline("part[0]");
+@source inline("path.replace(/");
 @source inline("path=/");
 @source inline("payload[key");
 @source inline("payload]");
@@ -1106,6 +1149,10 @@
 @source inline("peer-to-peer.");
 @source inline("peer/field-label");
 @source inline("peer/menu-button");
+@source inline("per-page");
+@source inline("per-route");
+@source inline("Per-route");
+@source inline("per-upload");
 @source inline("phone-formatter-language");
 @source inline("pl-2");
 @source inline("pl-2.5");
@@ -1119,7 +1166,9 @@
 @source inline("placeholder:tracking-normal");
 @source inline("pointer-events-auto");
 @source inline("pointer-events-none");
+@source inline("post-url-slug");
 @source inline("posts],");
+@source inline("posts])");
 @source inline("pr-1");
 @source inline("pr-2");
 @source inline("pr-2.5");
@@ -1165,9 +1214,11 @@
 @source inline("py-6");
 @source inline("py-7");
 @source inline("py-8");
+@source inline("re-runs");
 @source inline("react-day-picker");
 @source inline("react-dom/client");
 @source inline("react-hook-form");
+@source inline("react-hooks/exhaustive-deps");
 @source inline("react-resizable-panels");
 @source inline("real-time");
 @source inline("relative");
@@ -1180,6 +1231,7 @@
 @source inline("ring-0");
 @source inline("ring-1");
 @source inline("ring-2");
+@source inline("ring-border");
 @source inline("ring-offset-background");
 @source inline("ring-primary");
 @source inline("ring-ring");
@@ -1210,6 +1262,7 @@
 @source inline("select-none");
 @source inline("self-start");
 @source inline("self-stretch");
+@source inline("seo-config");
 @source inline("session-scoped.");
 @source inline("setActiveView]");
 @source inline("setApi])");
@@ -1245,11 +1298,14 @@
 @source inline("setObjectUrl]");
 @source inline("setOpenMobile]");
 @source inline("setOpenMobile])");
+@source inline("setOverride]");
+@source inline("setOverride])");
 @source inline("setPassword]");
 @source inline("setPreviewUrl]");
 @source inline("setRoomCodeInput]");
 @source inline("setScreenMessage]");
 @source inline("setScreenRoom]");
+@source inline("setSlugEdited]");
 @source inline("setState]");
 @source inline("setSubmitted]");
 @source inline("setTextContent]");
@@ -1306,6 +1362,7 @@
 @source inline("sm:grid-cols-2");
 @source inline("sm:h-80");
 @source inline("sm:items-center");
+@source inline("sm:items-end");
 @source inline("sm:justify-between");
 @source inline("sm:justify-end");
 @source inline("sm:max-w-sm");
@@ -1384,6 +1441,7 @@
 @source inline("text-primary-foreground");
 @source inline("text-primary-foreground/80");
 @source inline("text-red-500");
+@source inline("text-right");
 @source inline("text-secondary-foreground");
 @source inline("text-sidebar-foreground");
 @source inline("text-sidebar-foreground/70");
@@ -1400,6 +1458,7 @@
 @source inline("Text[]");
 @source inline("text/");
 @source inline("textarea[placeholder],");
+@source inline("theme-color");
 @source inline("third-party");
 @source inline("Third-Party");
 @source inline("toast-close=");
@@ -1437,6 +1496,10 @@
 @source inline("translate-x-px");
 @source inline("translate-y-[-50%]");
 @source inline("translateX(-");
+@source inline("twitter:card");
+@source inline("twitter:description");
+@source inline("twitter:image");
+@source inline("twitter:title");
 @source inline("Uint8Array(byteNumbers)],");
 @source inline("underline");
 @source inline("underline-offset-4");
@@ -1494,6 +1557,7 @@
 @source inline("x-frame-width");
 @source inline("xl:grid-cols-3");
 @source inline("xl:grid-cols-4");
+@source inline("YYYY-MM-DD");
 @source inline("z-[1]");
 @source inline("z-[100]");
 @source inline("z-10");

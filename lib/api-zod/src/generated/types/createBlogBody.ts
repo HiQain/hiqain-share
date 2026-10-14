@@ -13,14 +13,21 @@ export interface CreateBlogBody {
    */
   title: string;
   /**
-   * @minLength 1
+   * Custom URL slug. Falls back to the title when blank.
+   * @maxLength 80
+   */
+  slug?: string;
+  /**
+   * Short summary. Auto-generated from the content when blank.
    * @maxLength 1000
    */
-  excerpt: string;
+  excerpt?: string;
   /**
    * @minLength 1
    * @maxLength 20000
    */
   content: string;
+  /** Publish date. A future date schedules the post so it stays hidden on public views until then. Defaults to now when blank. */
+  publishedAt?: string;
   imageDataUrl: string | null;
 }
