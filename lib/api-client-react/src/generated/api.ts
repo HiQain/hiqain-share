@@ -677,6 +677,81 @@ export function useDownloadFile<
 }
 
 /**
+ * @summary Download all shared files as a zip archive
+ */
+export const getDownloadAllFilesUrl = () => {
+  return `/api/files/download-all`;
+};
+
+export const downloadAllFiles = async (
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getDownloadAllFilesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDownloadAllFilesQueryKey = () => {
+  return [`/api/files/download-all`] as const;
+};
+
+export const getDownloadAllFilesQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadAllFiles>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof downloadAllFiles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getDownloadAllFilesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof downloadAllFiles>>
+  > = ({ signal }) => downloadAllFiles({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadAllFiles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type DownloadAllFilesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadAllFiles>>
+>;
+export type DownloadAllFilesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Download all shared files as a zip archive
+ */
+
+export function useDownloadAllFiles<
+  TData = Awaited<ReturnType<typeof downloadAllFiles>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof downloadAllFiles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getDownloadAllFilesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary List blog posts
  */
 export const getListBlogsUrl = (params?: ListBlogsParams) => {
@@ -877,7 +952,7 @@ export const updateBlog = async (
 };
 
 export const getUpdateBlogMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -918,13 +993,13 @@ export type UpdateBlogMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateBlog>>
 >;
 export type UpdateBlogMutationBody = BodyType<UpdateBlogBody>;
-export type UpdateBlogMutationError = ErrorType<unknown>;
+export type UpdateBlogMutationError = ErrorType<void>;
 
 /**
  * @summary Update a blog post
  */
 export const useUpdateBlog = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<

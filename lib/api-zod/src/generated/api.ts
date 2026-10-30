@@ -122,7 +122,12 @@ export const DownloadFileResponse = zod.object({
  * @summary List blog posts
  */
 export const ListBlogsQueryParams = zod.object({
-  includeScheduled: zod.coerce.boolean().optional(),
+  includeScheduled: zod.coerce
+    .boolean()
+    .optional()
+    .describe(
+      "Include posts whose publish date is still in the future. Public views omit this so scheduled posts stay hidden until their date; admin views pass true to see them.",
+    ),
 });
 
 export const ListBlogsResponseItem = zod.object({
@@ -144,14 +149,25 @@ export const createBlogBodySlugMax = 80;
 
 export const createBlogBodyExcerptMax = 1000;
 
-export const createBlogBodyContentMax = 20000;
-
 export const CreateBlogBody = zod.object({
   title: zod.string().min(1).max(createBlogBodyTitleMax),
-  slug: zod.string().max(createBlogBodySlugMax).optional(),
-  excerpt: zod.string().max(createBlogBodyExcerptMax).optional(),
-  content: zod.string().min(1).max(createBlogBodyContentMax),
-  publishedAt: zod.coerce.date().optional(),
+  slug: zod
+    .string()
+    .max(createBlogBodySlugMax)
+    .optional()
+    .describe("Custom URL slug. Falls back to the title when blank."),
+  excerpt: zod
+    .string()
+    .max(createBlogBodyExcerptMax)
+    .optional()
+    .describe("Short summary. Auto-generated from the content when blank."),
+  content: zod.string().min(1),
+  publishedAt: zod.coerce
+    .date()
+    .optional()
+    .describe(
+      "Publish date. A future date schedules the post so it stays hidden on public views until then. Defaults to now when blank.",
+    ),
   imageDataUrl: zod.union([zod.string(), zod.null()]),
 });
 
@@ -168,15 +184,35 @@ export const updateBlogBodySlugMax = 80;
 
 export const updateBlogBodyExcerptMax = 1000;
 
-export const updateBlogBodyContentMax = 20000;
-
 export const UpdateBlogBody = zod.object({
   title: zod.string().min(1).max(updateBlogBodyTitleMax),
-  slug: zod.string().max(updateBlogBodySlugMax).optional(),
-  excerpt: zod.string().max(updateBlogBodyExcerptMax).optional(),
-  content: zod.string().min(1).max(updateBlogBodyContentMax),
-  publishedAt: zod.coerce.date().optional(),
+  slug: zod
+    .string()
+    .max(updateBlogBodySlugMax)
+    .optional()
+    .describe("Custom URL slug. Falls back to the title when blank."),
+  excerpt: zod
+    .string()
+    .max(updateBlogBodyExcerptMax)
+    .optional()
+    .describe("Short summary. Auto-generated from the content when blank."),
+  content: zod.string().min(1),
+  publishedAt: zod.coerce
+    .date()
+    .optional()
+    .describe(
+      "Publish date. A future date schedules the post so it stays hidden on public views until then.",
+    ),
   imageDataUrl: zod.union([zod.string(), zod.null()]),
+});
+
+export const UpdateBlogResponse = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  excerpt: zod.string(),
+  content: zod.string(),
+  imageDataUrl: zod.union([zod.string(), zod.null()]),
+  publishedAt: zod.coerce.date(),
 });
 
 /**

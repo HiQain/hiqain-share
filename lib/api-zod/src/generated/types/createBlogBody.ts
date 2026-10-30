@@ -22,12 +22,9 @@ export interface CreateBlogBody {
    * @maxLength 1000
    */
   excerpt?: string;
-  /**
-   * @minLength 1
-   * @maxLength 20000
-   */
+  /** @minLength 1 */
   content: string;
   /** Publish date. A future date schedules the post so it stays hidden on public views until then. Defaults to now when blank. */
-  publishedAt?: string;
+  publishedAt?: Date;
   imageDataUrl: string | null;
 }

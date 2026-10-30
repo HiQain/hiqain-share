@@ -87,10 +87,7 @@ export interface CreateBlogBody {
    * @maxLength 1000
    */
   excerpt?: string;
-  /**
-   * @minLength 1
-   * @maxLength 20000
-   */
+  /** @minLength 1 */
   content: string;
   /** Publish date. A future date schedules the post so it stays hidden on public views until then. Defaults to now when blank. */
   publishedAt?: string;
@@ -113,22 +110,12 @@ export interface UpdateBlogBody {
    * @maxLength 1000
    */
   excerpt?: string;
-  /**
-   * @minLength 1
-   * @maxLength 20000
-   */
+  /** @minLength 1 */
   content: string;
   /** Publish date. A future date schedules the post so it stays hidden on public views until then. */
   publishedAt?: string;
   imageDataUrl: string | null;
 }
-
-export type ListBlogsParams = {
-  /**
-   * Include posts whose publish date is still in the future. Public views omit this so scheduled posts stay hidden until their date; admin views pass true to see them.
-   */
-  includeScheduled?: boolean;
-};
 
 export interface Device {
   id: string;
@@ -164,3 +151,10 @@ export interface StatsSummary {
   textCharacters: number;
   retentionMinutes: number;
 }
+
+export type ListBlogsParams = {
+  /**
+   * Include posts whose publish date is still in the future. Public views omit this so scheduled posts stay hidden until their date; admin views pass true to see them.
+   */
+  includeScheduled?: boolean;
+};
