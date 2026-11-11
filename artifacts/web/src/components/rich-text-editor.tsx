@@ -142,7 +142,7 @@ export function RichTextEditor({ label, placeholder, value, onChange, className 
           data-placeholder={placeholder ?? ""}
           onInput={emitChange}
           className={cn(
-            "min-h-[260px] bg-background px-4 py-4 text-base outline-none",
+            "min-h-[260px] bg-background px-4 py-4 text-base text-foreground outline-none",
             "empty:before:pointer-events-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]",
             "[&_h1]:mb-3 [&_h1]:text-3xl [&_h1]:font-bold",
             "[&_h2]:mb-3 [&_h2]:text-2xl [&_h2]:font-semibold",
