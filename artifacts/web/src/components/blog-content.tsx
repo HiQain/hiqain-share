@@ -16,13 +16,27 @@ function convertPlainTextToHtml(value: string): string {
     .join("");
 }
 
+function stripInlineTextColor(value: string): string {
+  return (
+    value
+      // Remove `color: ...;` declarations from inline style attributes (keeps background-color).
+      .replace(/(?<![-\w])color\s*:\s*[^;"']+;?/gi, "")
+      // Drop now-empty style attributes left behind.
+      .replace(/\sstyle=("|')\s*\1/gi, "")
+      // Remove legacy <font color="..."> attributes.
+      .replace(/(<font[^>]*?)\scolor=("|')[^"']*\2/gi, "$1")
+  );
+}
+
 function sanitizeRichHtml(value: string): string {
-  return value
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
-    .replace(/\son\w+="[^"]*"/gi, "")
-    .replace(/\son\w+='[^']*'/gi, "")
-    .replace(/javascript:/gi, "");
+  return stripInlineTextColor(
+    value
+      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+      .replace(/\son\w+="[^"]*"/gi, "")
+      .replace(/\son\w+='[^']*'/gi, "")
+      .replace(/javascript:/gi, ""),
+  );
 }
 
 export function toRenderableBlogHtml(content: string): string {

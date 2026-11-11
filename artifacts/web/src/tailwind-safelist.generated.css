@@ -41,6 +41,7 @@
 @source inline(":not(:last-child)]:rounded-b-none");
 @source inline(":not(:last-child)]:rounded-r-none");
 @source inline("!--");
+@source inline("![-");
 @source inline("!m-0");
 @source inline("...state.toasts].slice(0,");
 @source inline(".[0]");
@@ -51,6 +52,7 @@
 @source inline(".map(([key,");
 @source inline(".match(/filename=");
 @source inline(".replace(/");
+@source inline(".replace(/(");
 @source inline(".replace(/[");
 @source inline(".replace(/javascript:/gi,");
 @source inline(".role])");
@@ -65,6 +67,7 @@
 @source inline("(site-wide");
 @source inline("(text.match(/https");
 @source inline(").replace(/");
+@source inline(")[");
 @source inline(")[1]");
 @source inline("[");
 @source inline("[_open,");
@@ -283,6 +286,7 @@
 @source inline("]]:stroke-transparent");
 @source inline("]]+");
 @source inline("]/)[0]");
+@source inline("]+");
 @source inline("]+)");
 @source inline("=from-]:animate-in");
 @source inline("=from-]:fade-in");
@@ -291,10 +295,13 @@
 @source inline(">([");
 @source inline(">(auto-filled");
 @source inline(">[");
+@source inline(">]");
 @source inline(">/blog/");
 @source inline(">/i.test(trimmed)");
 @source inline(">Auto-expiring");
 @source inline("1]");
+@source inline("1/gi,");
+@source inline("2/gi,");
 @source inline("a-z0-9]+/g,");
 @source inline("absolute");
 @source inline("ActionType[");
@@ -347,6 +354,7 @@
 @source inline("auto-filling");
 @source inline("auto-generated-from-title");
 @source inline("backdrop-blur");
+@source inline("background-color).");
 @source inline("basis-full");
 @source inline("bg-[--color-bg]");
 @source inline("bg-[#111111]");
@@ -675,6 +683,7 @@
 @source inline("font-normal");
 @source inline("font-sans");
 @source inline("font-semibold");
+@source inline("font[");
 @source inline("form])");
 @source inline("FormState[K])");
 @source inline("future-dated");
@@ -882,6 +891,7 @@
 @source inline("in-data-[side=right]:cursor-e-resize");
 @source inline("In-page");
 @source inline("initial-scale=1.0,");
+@source inline("inline");
 @source inline("inline-end");
 @source inline("inline-flex");
 @source inline("inline-start");
@@ -1075,6 +1085,7 @@
 @source inline("next-themes");
 @source inline("no-signup");
 @source inline("non-JS");
+@source inline("now-empty");
 @source inline("nth-last-2:-mt-1");
 @source inline("object-contain");
 @source inline("object-cover");
@@ -1549,6 +1560,7 @@
 @source inline("w-full");
 @source inline("w-max");
 @source inline("w-px");
+@source inline("w])color");
 @source inline("whitespace-nowrap");
 @source inline("whitespace-pre-wrap");
 @source inline("Wi-Fi,");
